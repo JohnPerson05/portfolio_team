@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import Image from "next/image";
 
 import { imageSource } from "@/lib/images";
@@ -85,7 +85,9 @@ export function MediaManager({
   const { toast } = useAdminFeedback();
   // Keep the latest list for async uploads that finish one by one.
   const latest = useRef(value);
-  latest.current = value;
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
 
   async function addFiles(files: FileList | File[] | null) {
     const list = Array.from(files ?? []);

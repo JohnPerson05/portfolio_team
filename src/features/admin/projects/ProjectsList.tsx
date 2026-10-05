@@ -171,13 +171,10 @@ function Row({
             </span>
           ) : null}
         </div>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-          <span>/{project.slug}</span>
-          <span className="md:hidden">·</span>
-          <span className="md:hidden">{timeAgo(project.updatedAt)}</span>
-          <span className="sm:hidden">
-            <StatusBadge status={view === "trash" ? "TRASH" : project.status} />
-          </span>
+        <p className="mt-0.5 hidden truncate text-xs text-zinc-500 sm:block">/{project.slug}</p>
+        <p className="mt-1 flex items-center gap-2 text-xs text-zinc-500 sm:hidden">
+          <StatusBadge status={view === "trash" ? "TRASH" : project.status} />
+          <span>{timeAgo(view === "trash" ? project.deletedAt : project.updatedAt)}</span>
         </p>
       </div>
       <div className="hidden w-36 shrink-0 text-[13px] text-zinc-600 lg:block">

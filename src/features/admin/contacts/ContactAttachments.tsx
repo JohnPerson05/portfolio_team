@@ -38,6 +38,7 @@ export function ContactAttachments({ urls }: ContactAttachmentsProps) {
                 className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {/* Blob URLs are arbitrary hosts; a native img avoids next/image remote config. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
                   alt={label}

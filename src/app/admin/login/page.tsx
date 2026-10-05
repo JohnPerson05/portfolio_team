@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentAdmin } from "@/lib/auth";
@@ -69,9 +70,9 @@ export default async function AdminLoginPage() {
             </Suspense>
           </div>
           <p className="mt-10 text-center text-xs text-zinc-400">
-            <a href="/" className="hover:text-zinc-700">
+            <Link href="/" className="hover:text-zinc-700">
               ← Back to the website
-            </a>
+            </Link>
           </p>
         </div>
       </main>

@@ -58,7 +58,8 @@ export function useInView<T extends Element = HTMLElement>(
       return;
     }
 
-    let fallback: number | undefined;
+    // Assigned below, after the closures that clear it are defined.
+    let fallback: number | undefined = undefined;
     const cleanupFallback = () => {
       if (fallback !== undefined) window.clearTimeout(fallback);
       window.removeEventListener("scroll", revealIfVisible);

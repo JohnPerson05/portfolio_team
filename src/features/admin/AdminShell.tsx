@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { logout } from "@/actions/auth";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,7 @@ function Sidebar({
   onNavigate,
 }: Omit<AdminShellProps, "children"> & { onNavigate?: () => void }) {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const [loggingOut, startLogout] = useTransition();
   const groups = buildNav(unreadInquiries);
 
@@ -160,7 +161,8 @@ function Sidebar({
             type="button"
             onClick={() => startLogout(async () => {
               await logout();
-              window.location.assign("/admin/login");
+              router.replace("/admin/login");
+              router.refresh();
             })}
             disabled={loggingOut}
             aria-label="Log out"

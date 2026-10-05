@@ -129,7 +129,6 @@ export function SortableList<T extends { id: string }>({
   const signature = items.map((i) => i.id).join("|");
   useEffect(() => {
     setOrder([...items]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, items]);
 
   const sensors = useSensors(
@@ -156,6 +155,12 @@ export function SortableList<T extends { id: string }>({
     }
   }
 
+  const labelFor = (id: string | number) => {
+    const item = order.find((i) => i.id === id);
+    return item ? itemLabel(item) : "Item";
+  };
+  const positionOf = (id: string | number) => order.findIndex((i) => i.id === id) + 1;
+
   const Tag = layout === "grid" ? "div" : "ul";
   const ItemTag = layout === "grid" ? "div" : "li";
 
@@ -168,6 +173,17 @@ export function SortableList<T extends { id: string }>({
       accessibility={{
         screenReaderInstructions: {
           draggable: "To reorder, press Space to pick up an item, use the arrow keys to move it, then press Space again to drop it. Press Escape to cancel.",
+        },
+        // Announce names and positions, not database ids.
+        announcements: {
+          onDragStart: ({ active }) => `Picked up ${labelFor(active.id)}.`,
+          onDragOver: ({ active, over }) =>
+            over ? `${labelFor(active.id)} moved to position ${positionOf(over.id)} of ${order.length}.` : undefined,
+          onDragEnd: ({ active, over }) =>
+            over
+              ? `${labelFor(active.id)} dropped at position ${positionOf(over.id)} of ${order.length}.`
+              : `${labelFor(active.id)} dropped.`,
+          onDragCancel: ({ active }) => `Reordering cancelled. ${labelFor(active.id)} was not moved.`,
         },
       }}
     >

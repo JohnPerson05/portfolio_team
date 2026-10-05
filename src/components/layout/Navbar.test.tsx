@@ -18,9 +18,10 @@ describe("Navbar", () => {
     expect(
       within(banner).getByRole("link", { name: BRAND_NAME }),
     ).toBeInTheDocument();
-    expect(
-      within(banner).getByRole("img", { name: BRAND_NAME }),
-    ).toHaveAttribute("src", expect.stringContaining("brandlogo"));
+    // The logo is decorative (alt="") because the link already carries the name.
+    const logo = within(banner).getByRole("link", { name: BRAND_NAME }).querySelector("img");
+    expect(logo).toHaveAttribute("src", expect.stringContaining("brandlogo"));
+    expect(logo).toHaveAttribute("alt", "");
   });
 
   it("renders each section link with the correct hash href", () => {

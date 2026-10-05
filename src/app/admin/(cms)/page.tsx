@@ -115,13 +115,13 @@ export default async function DashboardPage() {
               </AdminLinkButton>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead className="sr-only sm:not-sr-only">
                 <tr className="border-b border-zinc-100 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-2.5 font-semibold">Project</th>
-                  <th className="hidden px-3 py-2.5 font-semibold sm:table-cell">Status</th>
-                  <th className="hidden px-3 py-2.5 font-semibold md:table-cell">Updated</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">
+                  <th className="hidden w-28 px-3 py-2.5 font-semibold sm:table-cell">Status</th>
+                  <th className="hidden w-40 px-3 py-2.5 font-semibold md:table-cell">Updated</th>
+                  <th className="w-16 px-5 py-2.5 text-right font-semibold">
                     <span className="sr-only">Action</span>
                   </th>
                 </tr>
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
                     <td className="hidden px-3 py-3 sm:table-cell">
                       <StatusBadge status={project.status} />
                     </td>
-                    <td className="hidden whitespace-nowrap px-3 py-3 text-zinc-500 md:table-cell">
+                    <td className="hidden truncate whitespace-nowrap px-3 py-3 text-zinc-500 md:table-cell">
                       {timeAgo(project.updatedAt)}
                       {project.updatedBy ? <span className="text-zinc-400"> · {project.updatedBy}</span> : null}
                     </td>
