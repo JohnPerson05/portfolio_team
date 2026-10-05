@@ -15,6 +15,6 @@ export type { MenuItem } from "./feedback";
 export { ImageField } from "./ImageField";
 export { SortableList, DragHandle } from "./SortableList";
 export type { SortableRenderState } from "./SortableList";
-export { StringListEditor, ItemListEditor, StatListEditor } from "./ListEditor";
+export { StringListEditor, ItemListEditor, StatListEditor, ChapterListEditor } from "./ListEditor";
 export { Sheet } from "./Sheet";
 export { useRecordForm } from "./useRecordForm";

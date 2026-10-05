@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { ProjectView } from "@/types";
-import { makeProjectView } from "@/test/fixtures";
-import { MAX_FEATURED } from "./config";
-
-const MIN_FEATURED = 1;
+import { MAX_FEATURED, MIN_FEATURED } from "./config";
 import { FeaturedProjects } from "./FeaturedProjects";
 
 // The analytics action is only invoked by the link island on click; mock it so
@@ -14,8 +11,27 @@ vi.mock("@/actions/analytics", () => ({
   recordEvent: vi.fn(async () => undefined),
 }));
 
-function makeProject(order: number, overrides: Partial<ProjectView> = {}): ProjectView {
-  return makeProjectView(order, overrides);
+/** Build a featured ProjectView with overridable link fields. */
+function makeProject(
+  order: number,
+  overrides: Partial<ProjectView> = {},
+): ProjectView {
+  return {
+    id: `proj-${order}`,
+    title: `Project ${order}`,
+    slug: `project-${order}`,
+    summary: `Summary ${order}`,
+    problem: `Problem ${order}`,
+    solution: `Solution ${order}`,
+    impact: `Impact ${order}`,
+    technologies: ["TypeScript", "Next.js"],
+    thumbnailUrl: `/images/projects/${order}.jpg`,
+    githubUrl: `https://github.com/example/p${order}`,
+    liveUrl: `https://p${order}.example.com`,
+    featured: true,
+    order,
+    ...overrides,
+  };
 }
 
 /**
@@ -28,7 +44,7 @@ async function renderFeatured(projects: readonly ProjectView[]) {
 }
 
 describe("FeaturedProjects — featured bound & ordering (Property 1; Req 3.1)", () => {
-  it("renders all cards in `displayOrder` ascending for an in-range dataset", async () => {
+  it("renders all cards in `order` ascending for an in-range dataset", async () => {
     await renderFeatured([makeProject(3), makeProject(1), makeProject(2)]);
 
     const headings = screen
@@ -46,7 +62,7 @@ describe("FeaturedProjects — featured bound & ordering (Property 1; Req 3.1)",
     expect(cards).toHaveLength(MAX_FEATURED);
   });
 
-  it("renders every project up to six", async () => {
+  it("keeps the rendered count within 3–6 across in-range datasets", async () => {
     for (let count = MIN_FEATURED; count <= MAX_FEATURED; count += 1) {
       const projects = Array.from({ length: count }, (_, i) =>
         makeProject(i + 1),
@@ -62,7 +78,7 @@ describe("FeaturedProjects — featured bound & ordering (Property 1; Req 3.1)",
   it("renders an accessible projects landmark labelled by its heading", async () => {
     await renderFeatured([makeProject(1), makeProject(2), makeProject(3)]);
     expect(
-      screen.getByRole("region", { name: /real problems, solved/i }),
+      screen.getByRole("region", { name: /featured projects/i }),
     ).toBeInTheDocument();
   });
 });
@@ -75,13 +91,13 @@ describe("FeaturedProjects — link integrity (Property 2; Req 3.3)", () => {
       within(card).getByRole("link", { name: /github/i }),
     ).toBeInTheDocument();
     expect(
-      within(card).getByRole("link", { name: /live site/i }),
+      within(card).getByRole("link", { name: /live demo/i }),
     ).toBeInTheDocument();
   });
 
   it("renders GitHub only when the live URL is absent", async () => {
     await renderFeatured([
-      makeProject(1, { projectUrl: undefined }),
+      makeProject(1, { liveUrl: undefined }),
       makeProject(2),
       makeProject(3),
     ]);
@@ -90,11 +106,11 @@ describe("FeaturedProjects — link integrity (Property 2; Req 3.3)", () => {
       within(card).getByRole("link", { name: /github/i }),
     ).toBeInTheDocument();
     expect(
-      within(card).queryByRole("link", { name: /live site/i }),
+      within(card).queryByRole("link", { name: /live demo/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("renders Live site only when the GitHub URL is absent", async () => {
+  it("renders Live Demo only when the GitHub URL is absent", async () => {
     await renderFeatured([
       makeProject(1, { githubUrl: undefined }),
       makeProject(2),
@@ -105,13 +121,13 @@ describe("FeaturedProjects — link integrity (Property 2; Req 3.3)", () => {
       within(card).queryByRole("link", { name: /github/i }),
     ).not.toBeInTheDocument();
     expect(
-      within(card).getByRole("link", { name: /live site/i }),
+      within(card).getByRole("link", { name: /live demo/i }),
     ).toBeInTheDocument();
   });
 
   it("renders no action links when neither URL is present (no broken links)", async () => {
     await renderFeatured([
-      makeProject(1, { githubUrl: undefined, projectUrl: undefined }),
+      makeProject(1, { githubUrl: undefined, liveUrl: undefined }),
       makeProject(2),
       makeProject(3),
     ]);
@@ -125,7 +141,7 @@ describe("FeaturedProjects — link integrity (Property 2; Req 3.3)", () => {
 
   it("treats whitespace-only URLs as absent", async () => {
     await renderFeatured([
-      makeProject(1, { githubUrl: "   ", projectUrl: "" }),
+      makeProject(1, { githubUrl: "   ", liveUrl: "" }),
       makeProject(2),
       makeProject(3),
     ]);
@@ -139,13 +155,13 @@ describe("FeaturedProjects — link integrity (Property 2; Req 3.3)", () => {
 });
 
 describe("FeaturedProjects — card content (Req 3.2)", () => {
-  it("renders cover, problem, solution, result, and technologies", async () => {
+  it("renders thumbnail, problem, solution, impact, and technologies", async () => {
     await renderFeatured([makeProject(1), makeProject(2), makeProject(3)]);
     const card = screen.getByRole("article", { name: /project 1/i });
 
     expect(within(card).getByText("Problem 1")).toBeInTheDocument();
     expect(within(card).getByText("Solution 1")).toBeInTheDocument();
-    expect(within(card).getByText("Result 1")).toBeInTheDocument();
+    expect(within(card).getByText("Impact 1")).toBeInTheDocument();
     expect(within(card).getByText("TypeScript")).toBeInTheDocument();
     expect(within(card).getByText("Next.js")).toBeInTheDocument();
     expect(

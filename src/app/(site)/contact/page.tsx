@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/ui";
 import { ContactForm } from "@/features/contact";
-import { pageMetadata } from "@/lib/seo";
+import { createPageMetadata } from "@/lib/seo";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return pageMetadata({
-    title: "Start a Project",
-    description:
-      "Tell us about your idea or the problem slowing your business down. No technical brief needed.",
-    path: "/contact",
-  });
-}
+export const metadata: Metadata = createPageMetadata({
+  title: "Start a Project",
+  description:
+    "Discuss an interactive product, website, platform, or engineering engagement.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (
@@ -18,14 +16,14 @@ export default function ContactPage() {
       <PageHero
         index="06"
         eyebrow="Start a project"
-        title="Tell us what you're trying to build."
-        description="No technical brief needed. Tell us what's slowing your business down or the idea you want to test — both of us read every message. Attach notes, a sketch, or a screenshot if it helps."
+        title="Bring the ambitious brief."
+        description="Share the goal, current constraints, and what success should look like. Attach a brief, mockup, or sketch if you have one — PDF, Word, or images are welcome."
         status="Accepting new conversations"
       />
       <ContactForm
         eyebrow="Project intake"
         heading="Tell me what you are building"
-        description="New products, internal tools, customer portals, secure access, or ongoing support. Attach PDFs, Word docs, or images of your idea if that helps."
+        description="Apps, interactive websites, product platforms, and selective engineering partnerships. Attach PDFs, Word docs, or images of your idea if that helps."
       />
     </>
   );

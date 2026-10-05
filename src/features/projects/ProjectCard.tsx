@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card } from "@/components/ui";
+import { Card, Tag } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { ProjectView } from "@/types";
 import { hasLink } from "./config";
@@ -7,10 +7,9 @@ import { ProjectLink } from "./ProjectLink";
 import { ProjectVisual } from "./ProjectVisual";
 
 export interface ProjectCardProps {
+  /** The project to render. */
   project: ProjectView;
   className?: string;
-  /** Load the cover eagerly (first card above the fold). */
-  priority?: boolean;
 }
 
 /** Minimal GitHub mark used for the source-code link (decorative). */
@@ -22,7 +21,7 @@ function GitHubIcon() {
   );
 }
 
-/** Minimal "external link" glyph used for the live link (decorative). */
+/** Minimal "external link" glyph used for the live demo link (decorative). */
 function ExternalLinkIcon() {
   return (
     <svg
@@ -42,15 +41,27 @@ function ExternalLinkIcon() {
 }
 
 /**
- * `ProjectCard` — one project told as a business story: the challenge, what
- * was built, and the result, with a deliberately quiet technology line.
- * Action links render only when their URL exists.
+ * `ProjectCard` — a single featured-project card (Requirement 3.2).
+ *
+ * Renders the thumbnail, title/summary, a Problem → Solution → Impact
+ * narrative, the technology stack as {@link Tag}s, and — conditionally — the
+ * GitHub and Live Demo action links.
+ *
+ * Link integrity (Correctness Property 2 / Requirement 3.3): each action link
+ * is rendered if and only if its URL is non-empty (via {@link hasLink}); absent
+ * URLs produce no element at all rather than an empty/broken link. The links
+ * are interactive {@link ProjectLink} islands that record a `PROJECT_CLICK`
+ * event and open in a new tab (Requirement 3.5).
+ *
+ * Premium hover (Requirement 3.4): a subtle lift + accent border via the shared
+ * {@link Card} `hover="lift"` treatment, using design tokens — no flashy motion.
+ *
+ * Server-safe and presentational; only the per-link {@link ProjectLink} islands
+ * hydrate.
  */
-export function ProjectCard({ project, className, priority = false }: ProjectCardProps) {
-  const href = `/work/${project.slug}`;
+export function ProjectCard({ project, className }: ProjectCardProps) {
   const showGithub = hasLink(project.githubUrl);
-  const showLive = hasLink(project.projectUrl);
-  const meta = [project.clientName, project.year?.toString()].filter(Boolean);
+  const showLive = hasLink(project.liveUrl);
 
   return (
     <Card
@@ -61,97 +72,108 @@ export function ProjectCard({ project, className, priority = false }: ProjectCar
     >
       <ProjectVisual
         title={project.title}
-        thumbnailUrl={project.coverImage}
-        technologies={project.technologies.map((t) => t.name)}
-        href={href}
-        label={project.category ?? "Case study"}
-        priority={priority}
+        thumbnailUrl={project.thumbnailUrl}
+        technologies={project.technologies}
+        href={`/projects/${project.slug}`}
       />
 
       <div className="flex flex-1 flex-col gap-space-3 p-space-3 sm:p-space-4">
         <div className="flex flex-col gap-space-1">
-          {meta.length > 0 ? (
-            <p className="font-mono text-[0.62rem] uppercase tracking-widest text-muted">
-              {meta.join(" · ")}
-            </p>
-          ) : null}
           <h3
             id={`project-${project.id}-title`}
             className="text-balance font-display text-h3 font-semibold tracking-tight text-text"
           >
-            <Link href={href} className="transition-colors hover:text-accent">
+            <Link
+              href={`/projects/${project.slug}`}
+              className="transition-colors hover:text-accent"
+            >
               {project.title}
             </Link>
           </h3>
           <p className="text-pretty font-sans text-body text-muted">
-            {project.tagline ?? project.shortDescription}
+            {project.summary}
           </p>
         </div>
 
-        <dl className="flex flex-col gap-space-2">
-          {[
-            { label: "The challenge", value: project.problem },
-            { label: "What was built", value: project.solution },
-          ].map((step) => (
-            <div key={step.label} className="border-l border-white/15 pl-space-2">
-              <dt className="font-mono text-[0.62rem] uppercase tracking-widest text-muted">
-                {step.label}
-              </dt>
-              <dd className="mt-0.5 line-clamp-3 text-pretty text-caption leading-relaxed text-text/80">
-                {step.value}
-              </dd>
-            </div>
-          ))}
-          <div className="rounded-lg border border-accent/25 bg-accent/[0.06] p-space-2">
-            <dt className="font-mono text-[0.62rem] font-medium uppercase tracking-widest text-accent">
-              The result
-            </dt>
-            <dd className="mt-1 line-clamp-4 text-pretty font-sans text-body leading-relaxed text-text">
-              {project.result}
-            </dd>
-          </div>
+        {project.technologies.length > 0 ? (
+          <ul aria-label="Technologies" className="flex flex-wrap gap-space-1">
+            {project.technologies.map((tech) => (
+              <li key={tech}>
+                <Tag>{tech}</Tag>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <dl className="rounded-lg border border-white/[0.07] bg-white/[0.025] p-space-2">
+          <dt className="font-mono text-[0.62rem] font-medium uppercase tracking-widest text-accent">
+            Outcome
+          </dt>
+          <dd className="mt-1 text-pretty font-sans text-caption leading-relaxed text-text">
+            {project.impact}
+          </dd>
         </dl>
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-space-4">
+        <details className="group/details border-y border-hairline py-space-1">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between font-mono text-[0.65rem] uppercase tracking-widest text-muted transition-colors hover:text-text [&::-webkit-details-marker]:hidden">
+            Case study details
+            <span
+              aria-hidden="true"
+              className="text-accent transition-transform group-open/details:rotate-45"
+            >
+              +
+            </span>
+          </summary>
+          <dl className="flex flex-col gap-space-3 pb-space-2">
+            <div>
+              <dt className="font-mono text-[0.62rem] uppercase tracking-widest text-accent">
+                Problem
+              </dt>
+              <dd className="mt-1 text-pretty text-caption leading-relaxed text-muted">
+                {project.problem}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[0.62rem] uppercase tracking-widest text-accent">
+                Solution
+              </dt>
+              <dd className="mt-1 text-pretty text-caption leading-relaxed text-muted">
+                {project.solution}
+              </dd>
+            </div>
+          </dl>
+        </details>
+
+        <div className="mt-auto flex flex-wrap items-center gap-space-4">
           <Link
-            href={href}
+            href={`/projects/${project.slug}`}
             className="inline-flex min-h-11 items-center font-mono text-[0.65rem] font-medium uppercase tracking-widest text-accent transition-colors hover:text-text"
           >
-            Read the full story →
+            View case study →
           </Link>
-          {showGithub ? (
-            <ProjectLink
-              href={project.githubUrl as string}
-              projectId={project.id}
-              icon={<GitHubIcon />}
-            >
-              GitHub
-            </ProjectLink>
-          ) : null}
-          {showLive ? (
-            <ProjectLink
-              href={project.projectUrl as string}
-              projectId={project.id}
-              icon={<ExternalLinkIcon />}
-            >
-              Live site
-            </ProjectLink>
+          {showGithub || showLive ? (
+            <>
+              {showGithub ? (
+                <ProjectLink
+                  href={project.githubUrl as string}
+                  projectId={project.id}
+                  icon={<GitHubIcon />}
+                >
+                  GitHub
+                </ProjectLink>
+              ) : null}
+              {showLive ? (
+                <ProjectLink
+                  href={project.liveUrl as string}
+                  projectId={project.id}
+                  icon={<ExternalLinkIcon />}
+                >
+                  Live Demo
+                </ProjectLink>
+              ) : null}
+            </>
           ) : null}
         </div>
-
-        {project.technologies.length > 0 ? (
-          <div className="border-t border-hairline pt-space-2">
-            <p className="sr-only">Built with</p>
-            <ul
-              aria-label="Technologies"
-              className="flex flex-wrap gap-x-space-2 gap-y-1 font-mono text-[0.6rem] uppercase tracking-wider text-muted opacity-70"
-            >
-              {project.technologies.map((tech) => (
-                <li key={tech.slug}>{tech.name}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </Card>
   );

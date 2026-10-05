@@ -18,6 +18,15 @@ test.beforeEach(async ({}, testInfo) => {
   );
 });
 
+/** Keyboard reorder: lift the focused grip, move one down, drop. */
+async function keyboardDrag(page: Page) {
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Space");
+}
+
 async function signIn(page: Page, next?: string) {
   await page.goto(next ? `/admin/login?next=${encodeURIComponent(next)}` : "/admin/login");
   await page.getByLabel("Email").fill(email!);
@@ -38,7 +47,7 @@ test("wrong credentials show a generic error", async ({ page }) => {
   await page.getByLabel("Email").fill(email!);
   await page.getByLabel("Password", { exact: true }).fill("definitely-not-the-password");
   await page.getByRole("button", { name: /sign in/i }).click();
-  await expect(page.getByRole("alert")).toHaveText(/invalid email or password/i);
+  await expect(page.getByText(/invalid email or password/i)).toBeVisible();
 });
 
 test("add → preview → publish → archive → trash a project", async ({ page, request }) => {
@@ -54,12 +63,13 @@ test("add → preview → publish → archive → trash a project", async ({ pag
   await page.getByLabel("Project name").fill(title);
   await expect(page.getByLabel("Slug")).toHaveValue(slug);
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page).toHaveURL(/\/admin\/projects\/[a-z0-9-]+$/);
+  // Wait for the redirect from /new to the saved project's editor.
+  await expect(page).toHaveURL(/\/admin\/projects\/(?!new$)[a-z0-9]+$/);
   const editorUrl = page.url();
   const id = editorUrl.split("/").pop()!;
 
   // Drafts are invisible publicly but previewable by admins.
-  expect((await request.get(`/work/${slug}`)).status()).toBe(404);
+  expect((await request.get(`/projects/${slug}`)).status()).toBe(404);
   const preview = await page.request.get(`/admin/projects/${id}/preview`);
   expect(preview.status()).toBe(200);
   expect(await preview.text()).toContain(title);
@@ -74,7 +84,7 @@ test("add → preview → publish → archive → trash a project", async ({ pag
   await page.getByLabel(/^3\s*Result/).fill("Check-in time dropped from minutes to seconds.");
   await page.getByRole("tab", { name: /basics/i }).click();
   await page.getByLabel("Short description").fill("A booking and records portal for a multi-branch clinic.");
-  await page.getByLabel("Category").fill("Business system");
+  
 
   await page.getByRole("tab", { name: /media/i }).click();
   await page.getByRole("button", { name: "Use a URL" }).first().click();
@@ -88,17 +98,17 @@ test("add → preview → publish → archive → trash a project", async ({ pag
   await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();
 
   // Immediately public.
-  await page.goto(`/work/${slug}`);
+  await page.goto(`/projects/${slug}`);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByText("Check-in time dropped from minutes to seconds.")).toBeVisible();
-  await page.goto("/work");
+  await page.goto("/projects");
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
   // Archive → hidden again.
   await page.goto(editorUrl);
   await page.getByRole("button", { name: "Archive" }).click();
   await expect(page.getByText(/archived — hidden/i)).toBeVisible();
-  expect((await request.get(`/work/${slug}`)).status()).toBe(404);
+  expect((await request.get(`/projects/${slug}`)).status()).toBe(404);
 
   // Trash → restore → delete forever.
   await page.getByRole("button", { name: "Move to trash" }).click();
@@ -113,15 +123,16 @@ test("add → preview → publish → archive → trash a project", async ({ pag
 
 test("reordering projects persists", async ({ page }) => {
   await signIn(page, "/admin/projects");
-  const titles = () => page.locator("ul li a[href^='/admin/projects/']").allTextContents();
+  await expect(page).toHaveURL(/\/admin\/projects$/);
+  const rows = page.locator("ul li a[href^='/admin/projects/']");
+  await expect(rows.first()).toBeVisible();
+  const titles = () => rows.allTextContents();
   const before = await titles();
   test.skip(before.length < 2, "Needs at least two projects.");
 
   // Keyboard drag: focus the first grip, lift, move down, drop.
   await page.getByRole("button", { name: `Reorder ${before[0]}` }).focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Space");
+  await keyboardDrag(page);
   await expect(page.getByText("Project order saved")).toBeVisible();
 
   await page.reload();
@@ -130,9 +141,7 @@ test("reordering projects persists", async ({ page }) => {
 
   // Put it back.
   await page.getByRole("button", { name: `Reorder ${before[1]}` }).focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Space");
+  await keyboardDrag(page);
   await expect(page.getByText("Project order saved")).toBeVisible();
 });
 
@@ -142,18 +151,18 @@ test("settings, team, and homepage changes reach the public site", async ({ page
 
   // Settings → hero title.
   await page.getByRole("tab", { name: "Hero" }).click();
-  const heroTitle = page.getByLabel("Hero title", { exact: true });
+  const heroTitle = page.getByLabel("Hero name", { exact: true });
   const originalTitle = await heroTitle.inputValue();
-  await heroTitle.fill(`We build calm software ${stamp}`);
+  await heroTitle.fill(`Calm Software ${stamp}`);
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText(/settings saved/i)).toBeVisible();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(`We build calm software ${stamp}`);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(`Calm Software ${stamp}`);
 
   // Restore.
   await page.goto("/admin/settings");
   await page.getByRole("tab", { name: "Hero" }).click();
-  await page.getByLabel("Hero title", { exact: true }).fill(originalTitle);
+  await page.getByLabel("Hero name", { exact: true }).fill(originalTitle);
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText(/settings saved/i)).toBeVisible();
 
@@ -179,15 +188,15 @@ test("settings, team, and homepage changes reach the public site", async ({ page
   await page.goto("/about");
   await expect(page.getByRole("heading", { name })).toHaveCount(0);
 
-  // Homepage → hide the services section, then show it again.
+  // Homepage → hide the skills section, then show it again.
   await page.goto("/admin/homepage");
-  await page.locator("#section-services").click();
+  await page.locator("#section-skills").click();
   await page.getByRole("button", { name: "Save homepage" }).click();
   await expect(page.getByText("Homepage updated")).toBeVisible();
   await page.goto("/");
-  await expect(page.locator("section#services")).toHaveCount(0);
+  await expect(page.locator("section#skills")).toHaveCount(0);
   await page.goto("/admin/homepage");
-  await page.locator("#section-services").click();
+  await page.locator("#section-skills").click();
   await page.getByRole("button", { name: "Save homepage" }).click();
   await expect(page.getByText("Homepage updated")).toBeVisible();
 });

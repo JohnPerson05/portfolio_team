@@ -1,30 +1,37 @@
 /**
- * Homepage scroll-driven "How we work" scene — maps CMS process steps to the
- * chapters the scene animates through.
+ * Homepage 3D scroll experience copy + media.
  */
-import type { ProcessStepView } from "@/types";
 
-/** Fallback image when the `home.processCover` setting is empty. */
 export const SCROLL_SCENE_COVER = "/images/cover.png" as const;
+export const SCROLL_SCENE_PROFILE = "/images/profile.png" as const;
+
+export const SCROLL_SCENE_EYEBROW = "Immersive craft" as const;
+export const SCROLL_SCENE_HEADING = "Scroll through the work." as const;
+
+export const SCROLL_SCENE_CHAPTERS = [
+  {
+    id: "presence",
+    label: "01 — Presence",
+    title: "A face for the system",
+    body: "Portrait and cover set the atmosphere — quiet confidence before the stack, the delivery, and the product story.",
+  },
+  {
+    id: "depth",
+    label: "02 — Depth",
+    title: "Layers that earn their keep",
+    body: "Motion should explain hierarchy: what is close, what supports, and what stays in the background.",
+  },
+  {
+    id: "delivery",
+    label: "03 — Delivery",
+    title: "Built to ship, not just impress",
+    body: "3D scroll is a craft tool — used to guide attention, not distract from the engineering behind it.",
+  },
+] as const;
 
 export interface ScrollSceneChapter {
-  id: string;
-  /** e.g. "01 — Understand" */
-  label: string;
-  /** Short name shown on the project board, e.g. "Understand". */
-  short: string;
-  title: string;
-  body: string;
-}
-
-export function toChapters(
-  steps: readonly ProcessStepView[],
-): ScrollSceneChapter[] {
-  return steps.map((step) => ({
-    id: step.id,
-    label: `${String(step.stepNumber).padStart(2, "0")} — ${step.title}`,
-    short: step.title,
-    title: step.headline ?? step.title,
-    body: step.description,
-  }));
+  readonly id: string;
+  readonly label: string;
+  readonly title: string;
+  readonly body: string;
 }

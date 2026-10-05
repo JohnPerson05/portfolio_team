@@ -1,8 +1,9 @@
-// Public project reads live in the shared public read model, which only ever
-// returns PUBLISHED, non-deleted projects.
+// Public project reads come from the shared public read model, which only
+// returns PUBLISHED, non-deleted projects. The original function names are
+// kept so the original pages and sections work unchanged.
 export {
   getAdjacentProjects,
   getFeaturedProjects,
-  getPublishedProjectBySlug,
-  getPublishedProjects,
+  getPublishedProjects as getProjects,
+  getPublishedProjectBySlug as getProjectBySlug,
 } from "@/server/public/queries";

@@ -1,6 +1,3 @@
-"use client";
-
-import { useSiteChrome } from "./SiteChrome";
 import { cn } from "@/lib/utils";
 
 export interface LoadingVisualProps {
@@ -12,7 +9,6 @@ export function LoadingVisual({
   overlay = false,
   className,
 }: LoadingVisualProps) {
-  const { studioName } = useSiteChrome();
   return (
     <div
       role="status"
@@ -45,12 +41,12 @@ export function LoadingVisual({
           <span className="loader-orbit-reverse border-[var(--accent-cool)]/25 absolute inset-3 rounded-full border" />
           <span className="absolute inset-7 rounded-full border border-white/10 bg-black/25 backdrop-blur" />
           <span className="relative font-mono text-caption font-semibold tracking-[0.18em] text-text">
-            1<span className="text-accent">+</span>1
+            JPN<span className="text-accent">/</span>
           </span>
         </div>
 
         <p className="mt-space-4 font-display text-body-lg font-semibold tracking-tight text-text">
-          {studioName}
+          John Person Narral
         </p>
         <div className="mt-space-2 flex items-center gap-space-2 font-mono text-[0.64rem] uppercase tracking-[0.2em] text-muted">
           <span className="status-pulse h-2 w-2 rounded-full bg-emerald-400" />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { saveSettings } from "@/actions/site";
 import type {
+  SettingChapter,
   SettingDefinition,
   SettingGroup,
   SettingItem,
@@ -17,6 +18,7 @@ import {
   AdminTextarea,
   FormField,
   ImageField,
+  ChapterListEditor,
   ItemListEditor,
   Panel,
   StatListEditor,
@@ -71,6 +73,8 @@ function Control({
       );
     case "items":
       return <ItemListEditor label={def.label} value={(value as SettingItem[]) ?? []} onChange={onChange} />;
+    case "chapters":
+      return <ChapterListEditor label={def.label} value={(value as SettingChapter[]) ?? []} onChange={onChange} />;
     case "stats":
       return <StatListEditor value={(value as SettingStat[]) ?? []} onChange={onChange} />;
     default:
@@ -102,7 +106,7 @@ export function SettingsForm({
 }) {
   const router = useRouter();
   const { toast } = useAdminFeedback();
-  const [group, setGroup] = useState<SettingGroup>(groups[0] ?? "Studio");
+  const [group, setGroup] = useState<SettingGroup>(groups[0] ?? "Site");
   const [values, setValues] = useState<Values>({ ...initial });
   const [saved, setSaved] = useState<Values>({ ...initial });
   const [errors, setErrors] = useState<Record<string, string[]>>({});

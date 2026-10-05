@@ -7,18 +7,18 @@
  */
 
 /** Eyebrow label shown above the section heading. */
-export const CONTACT_EYEBROW = "Start a project" as const;
+export const CONTACT_EYEBROW = "Get in touch" as const;
 
 /** Section heading text. */
-export const CONTACT_HEADING = "Let's turn your idea into something real." as const;
+export const CONTACT_HEADING = "Let's build something exceptional" as const;
 
 /** Supporting copy shown beneath the heading. */
 export const CONTACT_DESCRIPTION =
-  "Tell us about the problem or the idea — in your own words. We'll reply with honest next steps — even if we're not the right fit." as const;
+  "Have a role, a project, or an idea in mind? Send a message — and attach a brief, mockup, or sketch if you have one." as const;
 
 /** Confirmation shown after a submission succeeds (Req 8.4). */
 export const CONTACT_SUCCESS_MESSAGE =
-  "Thanks for reaching out — your message has been sent. We'll be in touch soon." as const;
+  "Thanks for reaching out — your message has been sent. I'll be in touch soon." as const;
 
 /**
  * Fallback form-level error when the action fails without a specific message

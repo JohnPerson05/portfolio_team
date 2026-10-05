@@ -31,7 +31,6 @@ export type { BrandLogoProps } from "./BrandLogo";
 export {
   BRAND_NAME,
   BRAND_LOGO_SRC,
-  BACKGROUND_LINKS,
   NAV_LINKS,
   PRIMARY_CTA,
   SOCIAL_LINKS,

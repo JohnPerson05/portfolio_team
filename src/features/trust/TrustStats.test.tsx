@@ -5,13 +5,15 @@ import { TRUST_STATS } from "./config";
 import { mockMatchMedia, reducedMotionMatcher } from "@/test/match-media";
 
 describe("TrustStats", () => {
-  it("renders every configured metric label (Req 2.1)", () => {
+  it("renders all five metric labels (Req 2.1)", () => {
     mockMatchMedia(reducedMotionMatcher);
     render(<TrustStats />);
 
-    for (const stat of TRUST_STATS) {
-      expect(screen.getByText(stat.label)).toBeInTheDocument();
-    }
+    expect(screen.getByText("Years of Experience")).toBeInTheDocument();
+    expect(screen.getByText("Organizations")).toBeInTheDocument();
+    expect(screen.getByText("Core Technologies")).toBeInTheDocument();
+    expect(screen.getByText("Delivery Domains")).toBeInTheDocument();
+    expect(screen.getByText("AI Development Tools")).toBeInTheDocument();
   });
 
   it("exposes an accessible trust section landmark labelled by its heading", () => {
@@ -22,7 +24,7 @@ describe("TrustStats", () => {
     expect(section).not.toBeNull();
     // Region is named via aria-labelledby → the SectionHeading.
     expect(
-      screen.getByRole("region", { name: /enterprise experience, small-team attention/i }),
+      screen.getByRole("region", { name: /proven, measurable impact/i }),
     ).toBeInTheDocument();
   });
 
@@ -32,10 +34,10 @@ describe("TrustStats", () => {
 
     // No counting animation — final values appear right away, with suffixes
     // where configured (Req 2.3).
-    expect(screen.getByText("11+")).toBeInTheDocument(); // Combined years
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("6+")).toBeInTheDocument(); // Years of Experience
+    expect(screen.getByText("30+")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getAllByText("4")).toHaveLength(2);
   });
 
   it("includes the configured suffix on values that define one (Req 2.3)", () => {
@@ -58,10 +60,10 @@ describe("TrustStats", () => {
     // count-up runs for ~1.5s, so allow the assertion to retry past that.
     await waitFor(
       () => {
-        expect(screen.getByText("11+")).toBeInTheDocument();
-        expect(screen.getByText("2")).toBeInTheDocument();
+        expect(screen.getByText("6+")).toBeInTheDocument();
+        expect(screen.getByText("30+")).toBeInTheDocument();
         expect(screen.getByText("5")).toBeInTheDocument();
-        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getAllByText("4")).toHaveLength(2);
       },
       { timeout: 3000 },
     );
@@ -80,8 +82,6 @@ describe("TrustStats", () => {
     expect(screen.getByText("Happy Clients")).toBeInTheDocument();
     expect(screen.getByText("120+")).toBeInTheDocument();
     // Default metrics are not rendered when overridden.
-    expect(
-      screen.queryByText("Combined years in enterprise tech"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Years of Experience")).not.toBeInTheDocument();
   });
 });

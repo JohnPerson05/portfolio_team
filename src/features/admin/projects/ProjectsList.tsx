@@ -84,13 +84,13 @@ function useRowActions(view: ProjectListView) {
         label: "View live",
         icon: <Icon.External size={14} />,
         hidden: project.status !== "PUBLISHED",
-        onSelect: () => window.open(`/work/${project.slug}`, "_blank", "noopener"),
+        onSelect: () => window.open(`/projects/${project.slug}`, "_blank", "noopener"),
       },
       {
         label: "Publish",
         icon: <Icon.Check size={14} />,
         hidden: project.status === "PUBLISHED",
-        onSelect: () => run(() => setProjectStatus(project.id, "PUBLISHED"), { success: "Published — it's live on /work" }),
+        onSelect: () => run(() => setProjectStatus(project.id, "PUBLISHED"), { success: "Published — it's live on /projects" }),
       },
       {
         label: "Unpublish (to draft)",

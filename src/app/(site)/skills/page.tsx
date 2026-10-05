@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FadeUp, Stagger } from "@/components/motion";
 import { Button, Card, PageHero, SectionHeading, Tag } from "@/components/ui";
 import { Skills } from "@/features/skills";
-import { pageMetadata } from "@/lib/seo";
+import { createPageMetadata } from "@/lib/seo";
 
 const CAPABILITY_LAYERS = [
   {
@@ -99,23 +99,21 @@ const DELIVERY_DOMAINS = [
   },
 ] as const;
 
-export async function generateMetadata(): Promise<Metadata> {
-  return pageMetadata({
-    title: "Capabilities",
-    description:
-      "The engineering toolkit behind the studio's work — for readers who want the technical detail.",
-    path: "/skills",
-  });
-}
+export const metadata: Metadata = createPageMetadata({
+  title: "Capabilities",
+  description:
+    "John Person Narral's engineering capabilities across Java, Spring Boot, microservices, React, Next.js, cloud delivery, observability, and AI-assisted MVP development.",
+  path: "/skills",
+});
 
 export default function SkillsPage() {
   return (
     <>
       <PageHero
         index="02"
-        eyebrow="Behind the studio · The toolkit"
-        title="The technical detail, for those who want it."
-        description="You don't need any of this to work with us — but if you (or your technical advisor) want to know what sits under the hood, here is the engineering toolkit John brings from approximately six years of enterprise delivery."
+        eyebrow="Capabilities"
+        title="Backend depth. Full-stack delivery. Production discipline."
+        description="A practical engineering capability set shaped by approximately six years of enterprise delivery—spanning Java services, modern product interfaces, cloud pipelines, observability, and rapid MVP development."
       />
 
       <section className="px-space-2 py-section sm:px-space-4">

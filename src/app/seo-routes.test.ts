@@ -48,13 +48,13 @@ describe("search-engine routes", () => {
       "https://portfolio.example/",
       "https://portfolio.example/blog",
       "https://portfolio.example/about",
-      "https://portfolio.example/work",
+      "https://portfolio.example/projects",
       "https://portfolio.example/services",
       "https://portfolio.example/skills",
       "https://portfolio.example/experience",
       "https://portfolio.example/testimonials",
       "https://portfolio.example/contact",
-      "https://portfolio.example/work/petcury",
+      "https://portfolio.example/projects/petcury",
       "https://portfolio.example/blog/published",
     ]);
   });

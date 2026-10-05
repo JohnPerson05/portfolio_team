@@ -3,17 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { imageSource } from "@/lib/images";
+import { isOptimizableImage } from "@/lib/images";
 
 export interface ProjectVisualProps {
   title: string;
   thumbnailUrl?: string;
   technologies: readonly string[];
   href?: string;
-  /** Top-left label, e.g. the project category. */
-  label?: string;
-  /** Load eagerly (above the fold). */
-  priority?: boolean;
 }
 
 export function ProjectVisual({
@@ -21,8 +17,6 @@ export function ProjectVisual({
   thumbnailUrl,
   technologies,
   href,
-  label = "Case study",
-  priority = false,
 }: ProjectVisualProps) {
   const [imageAvailable, setImageAvailable] = useState(Boolean(thumbnailUrl));
   const initials = title
@@ -44,8 +38,8 @@ export function ProjectVisual({
       ) : null}
       {thumbnailUrl && imageAvailable ? (
         <Image
-          {...imageSource(thumbnailUrl)}
-          priority={priority}
+          src={thumbnailUrl}
+          unoptimized={!isOptimizableImage(thumbnailUrl)}
           alt={`${title} preview`}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
@@ -79,8 +73,9 @@ export function ProjectVisual({
       )}
 
       <div className="absolute inset-x-0 top-0 flex items-center justify-between p-space-2 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-white/60">
-        <span className="rounded-full border border-white/10 bg-black/40 px-2 py-1 backdrop-blur">
-          {label}
+        <span>Product system</span>
+        <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 backdrop-blur">
+          Case study
         </span>
       </div>
 

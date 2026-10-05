@@ -29,11 +29,6 @@
   --accent-cool: #72d7ff;
   --border: rgba(255, 255, 255, 0.08);
 
-  /* RGB channels for Tailwind opacity modifiers (keep in sync with above). */
-  --bg-rgb: 5 5 5;
-  --text-rgb: 255 255 255;
-  --accent-rgb: 212 175 55;
-
   /* Typography — font-family CSS variables are populated by next/font in
    * `layout.tsx` (--font-sans, --font-display) for zero layout shift. */
 }
@@ -131,10 +126,6 @@
     animation: scan-line 5s ease-in-out infinite;
   }
 
-  .duo-float {
-    animation: duo-float 6.4s ease-in-out infinite;
-  }
-
   .ticker-track {
     animation: ticker 24s linear infinite;
   }
@@ -176,16 +167,6 @@
   85% {
     transform: translateY(420px);
     opacity: 0;
-  }
-}
-
-@keyframes duo-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
   }
 }
 

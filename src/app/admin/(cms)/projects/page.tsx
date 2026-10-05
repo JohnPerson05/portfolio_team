@@ -29,7 +29,7 @@ export default async function AdminProjectsPage({
     <>
       <PageHeader
         title="Projects"
-        description="Case studies shown on /work and the homepage. Drafts and archived projects are never public."
+        description="Case studies shown on /projects and the homepage. Drafts and archived projects are never public."
         actions={
           <AdminLinkButton href="/admin/projects/new" variant="primary">
             <Icon.Plus size={14} /> Add project

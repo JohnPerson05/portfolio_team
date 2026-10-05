@@ -1,27 +1,16 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./BrandLogo";
-import {
-  BACKGROUND_LINKS,
-  BRAND_NAME,
-  NAV_LINKS,
-  PRIMARY_CTA,
-  SOCIAL_LINKS,
-  type NavLink,
-} from "./navigation";
+import { BRAND_NAME, NAV_LINKS, SOCIAL_LINKS, type NavLink } from "./navigation";
 
 export interface FooterProps {
-  /** Studio name (CMS setting `studio.name`). */
+  /** Site name (CMS setting `studio.name`). */
   studioName?: string;
   /** Short paragraph under the brand (CMS setting `footer.text`). */
   text?: string;
-  /** "Explore" column — the header navigation. */
-  exploreLinks?: readonly NavLink[];
-  /** "Behind the studio" column — footer navigation items. */
-  secondaryLinks?: readonly NavLink[];
+  /** "Explore" links — the header navigation. */
+  links?: readonly NavLink[];
   socialLinks?: readonly NavLink[];
-  contactEmail?: string;
-  cta?: NavLink;
   className?: string;
 }
 
@@ -36,12 +25,9 @@ export interface FooterProps {
  */
 export function Footer({
   studioName = BRAND_NAME,
-  text = "Two people, one digital product team. We design, build, launch, and look after the products businesses run on.",
-  exploreLinks = NAV_LINKS,
-  secondaryLinks = BACKGROUND_LINKS,
+  text = "Backend and full-stack engineering for enterprise systems, product integrations, and focused MVP delivery.",
+  links = NAV_LINKS,
   socialLinks = SOCIAL_LINKS,
-  contactEmail,
-  cta = PRIMARY_CTA,
   className,
 }: FooterProps) {
   const year = new Date().getFullYear();
@@ -55,7 +41,7 @@ export function Footer({
           {/* Brand */}
           <div className="max-w-sm">
             <div className="flex items-center gap-space-3">
-              <BrandLogo size={56} className="h-14 w-14" alt={studioName} />
+              <BrandLogo size={56} className="h-14 w-14" />
               <p className="font-display text-body-lg font-semibold tracking-tight text-text">
                 {studioName}
               </p>
@@ -63,20 +49,6 @@ export function Footer({
             <p className="mt-space-3 text-pretty text-body text-muted">
               {text}
             </p>
-            {contactEmail ? (
-              <a
-                href={`mailto:${contactEmail}`}
-                className="mt-space-2 inline-flex min-h-11 items-center text-body text-text/90 transition-colors hover:text-accent"
-              >
-                {contactEmail}
-              </a>
-            ) : null}
-            <Link
-              href={cta.href}
-              className="mt-space-3 flex min-h-11 w-fit items-center font-mono text-caption uppercase tracking-widest text-accent transition-colors hover:text-text"
-            >
-              {cta.label} →
-            </Link>
           </div>
 
           <div className="flex flex-col gap-space-6 sm:flex-row sm:gap-space-12">
@@ -86,7 +58,7 @@ export function Footer({
                 Explore
               </h2>
               <ul className="mt-space-2 flex flex-col gap-space-1">
-                {exploreLinks.map((link) => (
+                {links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
@@ -102,30 +74,6 @@ export function Footer({
                 ))}
               </ul>
             </nav>
-
-            {secondaryLinks.length > 0 ? (
-              <nav aria-label="Behind the studio">
-                <h2 className="text-caption font-medium uppercase tracking-widest text-muted">
-                  Behind the studio
-                </h2>
-                <ul className="mt-space-2 flex flex-col gap-space-1">
-                  {secondaryLinks.map((link) => (
-                    <li key={link.href}>
-                      <Link
-                        href={link.href}
-                        className={cn(
-                          "inline-flex min-h-11 items-center rounded-md text-body text-muted",
-                          "transition-colors hover:text-text",
-                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-                        )}
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            ) : null}
 
             {socialLinks.length > 0 ? (
               <div>

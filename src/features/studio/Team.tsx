@@ -110,7 +110,7 @@ export function MemberCard({
       {member.responsibilities.length > 0 ? (
         <div className="border-t border-hairline pt-space-3">
           <p className="font-mono text-[0.62rem] uppercase tracking-widest text-muted">
-            Takes care of
+            Key areas
           </p>
           <ul className="mt-space-2 flex flex-col gap-space-1">
             {member.responsibilities.map((item) => (
@@ -262,7 +262,7 @@ export function Team({
         {showStudioLink ? (
           <div className="flex justify-center">
             <Button href="/about" variant="ghost" size="md">
-              More about the studio →
+              More about us →
             </Button>
           </div>
         ) : null}

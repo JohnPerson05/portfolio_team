@@ -3,6 +3,7 @@ import { FadeUp } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import type { PostView } from "@/types";
 import { formatPublishedDate } from "./config";
+import { isOptimizableImage } from "@/lib/images";
 
 export interface ArticleProps {
   /** The published post to render in full. */
@@ -66,6 +67,7 @@ export function Article({ post, className }: ArticleProps) {
         <div className="relative mt-space-6 aspect-video w-full overflow-hidden rounded-lg border border-hairline bg-bg-secondary">
           <Image
             src={post.coverUrl}
+            unoptimized={!isOptimizableImage(post.coverUrl)}
             alt={`${post.title} cover`}
             fill
             priority

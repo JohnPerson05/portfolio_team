@@ -1,8 +1,3 @@
-import {
-  SETTINGS_REGISTRY,
-  type SettingStat,
-} from "@/server/settings/registry";
-
 /**
  * Trust / Stats section content + types (Task 13).
  *
@@ -35,8 +30,23 @@ export interface TrustStat {
   readonly suffix?: string;
 }
 
-/** Map the `home.stats` setting onto the section's stat shape. */
-export function toTrustStats(stats: readonly SettingStat[]): TrustStat[] {
+/**
+ * Default trust metrics (Req 2.1). Premium, plausible defaults that the owner
+ * edits here (or that a CMS overrides via {@link TrustStatsProps}). Order is
+ * the display order, left-to-right then wrapping on smaller grids.
+ */
+export const TRUST_STATS: readonly TrustStat[] = [
+  { id: "experience", label: "Years of Experience", value: 6, suffix: "+" },
+  { id: "organizations", label: "Organizations", value: 4 },
+  { id: "technologies", label: "Core Technologies", value: 30, suffix: "+" },
+  { id: "domains", label: "Delivery Domains", value: 5 },
+  { id: "aitools", label: "AI Development Tools", value: 4 },
+];
+
+/** Map the CMS `home.stats` setting onto the section's stat shape. */
+export function toTrustStats(
+  stats: readonly { label: string; value: number; suffix?: string }[],
+): TrustStat[] {
   return stats.map((stat, index) => ({
     id: `stat-${index}`,
     label: stat.label,
@@ -44,8 +54,3 @@ export function toTrustStats(stats: readonly SettingStat[]): TrustStat[] {
     suffix: stat.suffix || undefined,
   }));
 }
-
-/** Defaults (the `home.stats` setting's default value). */
-export const TRUST_STATS: readonly TrustStat[] = toTrustStats(
-  SETTINGS_REGISTRY["home.stats"].defaultValue,
-);

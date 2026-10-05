@@ -306,7 +306,7 @@ export function TeamManager({ members }: { members: TeamMemberRow[] }) {
           <AdminTextarea {...fieldProps("m-bio", errors.bio)} rows={5} value={values.bio} onChange={(e) => set("bio", e.target.value)} />
         </FormField>
         <StringListEditor
-          label="Takes care of"
+          label="Key areas"
           value={values.responsibilities}
           onChange={(v) => set("responsibilities", v)}
           placeholder="Secure logins — the right people see the right things"

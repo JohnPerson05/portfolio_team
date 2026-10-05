@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Button, EmptyState, PageHero } from "@/components/ui";
 import { FadeUp } from "@/components/motion";
-import { ScrollScene } from "@/features/scroll-scene";
+import { ScrollScene } from "@/features/scroll-scene/ProcessScene";
 import { Services } from "@/features/studio";
 import { pageMetadata } from "@/lib/seo";
 import {
@@ -39,7 +39,7 @@ export default async function ServicesPage() {
           servicesCopy?.description ??
           "Tell us what's slowing you down — we'll handle the rest."
         }
-        status={settings["hero.availability"]}
+        status="Available for select projects"
       />
 
       {services.length > 0 ? (

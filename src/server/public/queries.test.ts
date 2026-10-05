@@ -50,11 +50,11 @@ describe("public read model", () => {
   it("normalises empty values to undefined", () => {
     const view = toProjectView(row());
     expect(view.description).toBeUndefined();
-    expect(view.coverImage).toBeUndefined();
-    expect(view.projectUrl).toBeUndefined();
+    expect(view.thumbnailUrl).toBeUndefined();
+    expect(view.liveUrl).toBeUndefined();
   });
 
-  it("falls back cover → first gallery image and hero → cover", () => {
+  it("uses the first gallery image as the cover when none is set", () => {
     const view = toProjectView(
       row({
         media: [
@@ -63,12 +63,12 @@ describe("public read model", () => {
         ],
       }),
     );
-    expect(view.coverImage).toBe("https://x/a.png");
-    expect(view.heroImage).toBe("https://x/a.png");
-    expect(view.media[1]).toMatchObject({ caption: "Cap", altText: "Alt" });
+    expect(view.thumbnailUrl).toBe("https://x/a.png");
+    expect(view.imageUrls).toEqual(["https://x/a.png"]);
+    expect(view.media?.[1]).toMatchObject({ caption: "Cap", altText: "Alt" });
   });
 
-  it("maps technologies to tags", () => {
+  it("maps technologies to names", () => {
     const view = toProjectView(
       row({
         technologies: [
@@ -76,12 +76,13 @@ describe("public read model", () => {
         ],
       }),
     );
-    expect(view.technologies).toEqual([{ name: "Next.js", slug: "next-js", icon: undefined }]);
+    expect(view.technologies).toEqual(["Next.js"]);
   });
 
   it("builds initials and filters empty social links", () => {
     expect(initialsFor("John Person Narral")).toBe("JP");
-    expect(initialsFor("[EDIT ME] Second")).toBe("EM");
+    expect(initialsFor("[EDIT ME] Second Person")).toBe("SP");
+    expect(initialsFor("IAM & IT Operations Specialist")).toBe("IAM");
     const settings = { ...defaultSettings(), "social.linkedin": "https://linkedin.com/in/x" };
     expect(socialLinks(settings)).toEqual([{ label: "LinkedIn", href: "https://linkedin.com/in/x" }]);
   });

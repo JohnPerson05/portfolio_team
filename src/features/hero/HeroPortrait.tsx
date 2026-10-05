@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isOptimizableImage } from "@/lib/images";
 
 export interface HeroPortraitProps {
   /** Portrait image path/URL. */
@@ -24,6 +25,7 @@ export function HeroPortrait({ src, name }: HeroPortraitProps) {
         <div className="relative aspect-[3/4] w-full sm:aspect-[4/5]">
           <Image
             src={src}
+            unoptimized={!isOptimizableImage(src)}
             alt={name}
             fill
             priority

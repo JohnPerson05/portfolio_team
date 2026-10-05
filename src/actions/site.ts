@@ -49,6 +49,15 @@ const VALUE_SCHEMAS: Record<SettingType, z.ZodTypeAny> = {
       }),
     )
     .max(20),
+  chapters: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1, "Each chapter needs a label").max(80),
+        title: z.string().trim().min(1, "Each chapter needs a title").max(200),
+        body: z.string().trim().max(1_000),
+      }),
+    )
+    .max(8),
   stats: z
     .array(
       z.object({

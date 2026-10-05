@@ -231,3 +231,45 @@ export function StatListEditor({
     </fieldset>
   );
 }
+
+/** Edit an ordered list of { label, title, body } chapters. */
+export function ChapterListEditor({
+  label,
+  value,
+  onChange,
+  max = 8,
+}: {
+  label: string;
+  value: { label: string; title: string; body: string }[];
+  onChange: (value: { label: string; title: string; body: string }[]) => void;
+  max?: number;
+}) {
+  const update = (index: number, patch: Partial<{ label: string; title: string; body: string }>) =>
+    onChange(value.map((v, i) => (i === index ? { ...v, ...patch } : v)));
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1.5 text-[13px] font-medium text-zinc-800">{label}</legend>
+      {value.map((item, index) => (
+        <div key={index} className="flex gap-2 rounded-md border border-zinc-200 bg-white p-3">
+          <div className="flex flex-1 flex-col gap-2">
+            <AdminInput value={item.label} placeholder="01 — Presence" aria-label={`Chapter ${index + 1} label`} onChange={(e) => update(index, { label: e.target.value })} />
+            <AdminInput value={item.title} placeholder="Title" aria-label={`Chapter ${index + 1} title`} onChange={(e) => update(index, { title: e.target.value })} />
+            <AdminTextarea rows={2} value={item.body} placeholder="Text" aria-label={`Chapter ${index + 1} text`} onChange={(e) => update(index, { body: e.target.value })} />
+          </div>
+          <RowControls
+            index={index}
+            total={value.length}
+            label={item.title || `chapter ${index + 1}`}
+            onMove={(to) => onChange(move(value, index, to))}
+            onRemove={() => onChange(value.filter((_, i) => i !== index))}
+          />
+        </div>
+      ))}
+      <div>
+        <AdminButton size="sm" disabled={value.length >= max} onClick={() => onChange([...value, { label: "", title: "", body: "" }])}>
+          <Icon.Plus size={14} /> Add chapter
+        </AdminButton>
+      </div>
+    </fieldset>
+  );
+}

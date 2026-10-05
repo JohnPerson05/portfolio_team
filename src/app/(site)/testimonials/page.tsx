@@ -1,38 +1,27 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/ui";
 import { Testimonials } from "@/features/testimonials";
-import { pageMetadata } from "@/lib/seo";
-import { getSectionCopy, getTestimonials } from "@/server/public/queries";
+import { createPageMetadata } from "@/lib/seo";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return pageMetadata({
-    title: "Testimonials",
-    description: "What clients and collaborators say about working with the studio.",
-    path: "/testimonials",
-  });
-}
+export const metadata: Metadata = createPageMetadata({
+  title: "Professional References",
+  description:
+    "Professional references for John Person Narral are available upon request.",
+  path: "/testimonials",
+});
 
-export default async function TestimonialsPage() {
-  const [testimonials, copy] = await Promise.all([
-    getTestimonials(),
-    getSectionCopy("testimonials"),
-  ]);
-
+export default function TestimonialsPage() {
   return (
     <>
       <PageHero
         index="04"
-        eyebrow={copy?.eyebrow ?? "Testimonials"}
-        title={copy?.title ?? "What people say about working with us"}
-        description={
-          copy?.description ??
-          "Feedback from the people we've built for and worked alongside. References are also available on request."
-        }
+        eyebrow="Professional references"
+        title="Professional perspective, shared with context."
+        description="A recommendation-style view of trusted working relationships. References are shared privately when relevant to a role, engagement, or project conversation."
       />
       <Testimonials
-        testimonials={testimonials}
-        eyebrow="In their words"
-        heading="Testimonials"
+        eyebrow="Available on request"
+        heading="Professional references"
         showDetailLink={false}
         className="bg-transparent"
       />

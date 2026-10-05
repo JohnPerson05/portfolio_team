@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { isOptimizableImage } from "@/lib/images";
 
 interface ReferenceAvatarProps {
   url?: string;
@@ -30,6 +31,7 @@ export function ReferenceAvatar({
   return (
     <Image
       src={url}
+      unoptimized={!isOptimizableImage(url)}
       alt={`Photo of ${author}`}
       width={56}
       height={56}
@@ -53,6 +55,7 @@ export function ReferenceLogo({ url, company, author }: ReferenceLogoProps) {
   return (
     <Image
       src={url}
+      unoptimized={!isOptimizableImage(url)}
       alt={company ? `${company} logo` : `${author} company logo`}
       width={96}
       height={32}

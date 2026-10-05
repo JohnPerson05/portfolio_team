@@ -9,16 +9,31 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
+import { imageSource } from "@/lib/images";
 import { cn } from "@/lib/utils";
-import { isOptimizableImage } from "@/lib/images";
-import {
-  SCROLL_SCENE_CHAPTERS,
-  SCROLL_SCENE_COVER,
-  SCROLL_SCENE_EYEBROW,
-  SCROLL_SCENE_HEADING,
-  SCROLL_SCENE_PROFILE,
-  type ScrollSceneChapter,
-} from "./config";
+import type { ProcessStepView } from "@/types";
+const SCROLL_SCENE_COVER = "/images/cover.png";
+
+/** One process step as a chapter of the scroll scene. */
+interface ScrollSceneChapter {
+  id: string;
+  /** e.g. "01 — Understand" */
+  label: string;
+  /** Short name shown on the project board. */
+  short: string;
+  title: string;
+  body: string;
+}
+
+export function toChapters(steps: readonly ProcessStepView[]): ScrollSceneChapter[] {
+  return steps.map((step) => ({
+    id: step.id,
+    label: `${String(step.stepNumber).padStart(2, "0")} — ${step.title}`,
+    short: step.title,
+    title: step.headline ?? step.title,
+    body: step.description,
+  }));
+}
 
 function ChapterPanel({
   chapter,
@@ -70,38 +85,126 @@ function ChapterPanel({
   );
 }
 
-/**
- * Sticky, scroll-driven 3D scene for the homepage.
- *
- * A tall track pins a perspective stage; cover and profile images move on
- * separate depth planes while chapter copy fades through as the visitor scrolls.
- * Honors `prefers-reduced-motion` by freezing to a readable static composition.
- */
-export interface ScrollSceneProps {
-  eyebrow?: string;
-  heading?: string;
-  chapters?: readonly { label: string; title: string; body: string }[];
-  coverImage?: string;
-  profileImage?: string;
-  profileAlt?: string;
-  className?: string;
+/** One row in the floating "project board" — lights up as its step is reached. */
+function StepRow({
+  chapter,
+  index,
+  total,
+  progress,
+  reducedMotion,
+}: {
+  chapter: ScrollSceneChapter;
+  index: number;
+  total: number;
+  progress: MotionValue<number>;
+  reducedMotion: boolean;
+}) {
+  const reached = (index + 0.15) / total;
+  const fill = useTransform(
+    progress,
+    [Math.max(0, reached - 0.08), reached],
+    reducedMotion ? [1, 1] : [0, 1],
+  );
+  const dim = useTransform(fill, [0, 1], [0.45, 1]);
+
+  return (
+    <motion.li
+      style={{ opacity: dim }}
+      className="flex items-center gap-space-2 rounded-lg border border-white/10 bg-white/[0.03] px-space-2 py-space-1"
+    >
+      <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20">
+        <motion.span
+          style={{ scale: fill, opacity: fill }}
+          className="absolute inset-[3px] rounded-full bg-accent"
+        />
+      </span>
+      <span className="truncate font-sans text-[0.78rem] text-text">
+        {chapter.short}
+      </span>
+      <motion.span
+        style={{ opacity: fill }}
+        className="ml-auto font-mono text-[0.55rem] uppercase tracking-wider text-emerald-300"
+      >
+        Done
+      </motion.span>
+    </motion.li>
+  );
 }
 
+/** A small, abstract "your project" board that fills in as the visitor scrolls. */
+function ProjectBoard({
+  chapters,
+  progress,
+  reducedMotion,
+}: {
+  chapters: readonly ScrollSceneChapter[];
+  progress: MotionValue<number>;
+  reducedMotion: boolean;
+}) {
+  const barWidth = useTransform(
+    progress,
+    [0, 0.95],
+    reducedMotion ? ["100%", "100%"] : ["6%", "100%"],
+  );
+
+  return (
+    <div className="flex h-full w-full flex-col gap-space-2 bg-[#0b0e12]/95 p-space-3 backdrop-blur">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-muted">
+          Your project
+        </p>
+        <span className="flex items-center gap-1.5 font-mono text-[0.55rem] uppercase tracking-wider text-emerald-300">
+          <span className="status-pulse h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Live
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <motion.div
+          style={{ width: barWidth }}
+          className="h-full rounded-full bg-gradient-to-r from-[var(--accent-cool)] to-accent"
+        />
+      </div>
+      <ul className="mt-space-1 flex flex-col gap-space-1">
+        {chapters.map((chapter, index) => (
+          <StepRow
+            key={chapter.id}
+            chapter={chapter}
+            index={index}
+            total={chapters.length}
+            progress={progress}
+            reducedMotion={reducedMotion}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Process variant of the scroll scene (used by the optional Process section
+ * and /services): a project board fills in as the visitor scrolls.
+ *
+ * Sticky, scroll-driven "How we work" scene for the homepage.
+ *
+ * A tall track pins a perspective stage; a cover plane and a small "your
+ * project" board move on separate depth planes while each process step fades
+ * through and ticks off as the visitor scrolls.
+ * Honors `prefers-reduced-motion` by freezing to a readable static composition.
+ */
 export function ScrollScene({
-  eyebrow = SCROLL_SCENE_EYEBROW,
-  heading = SCROLL_SCENE_HEADING,
-  chapters: chapterInput = SCROLL_SCENE_CHAPTERS,
+  steps,
+  eyebrow,
+  heading,
   coverImage = SCROLL_SCENE_COVER,
-  profileImage = SCROLL_SCENE_PROFILE,
-  profileAlt = "John Person portrait",
   className,
-}: ScrollSceneProps) {
-  const chapters: ScrollSceneChapter[] = chapterInput.map((c, i) => ({
-    id: `chapter-${i}`,
-    label: c.label,
-    title: c.title,
-    body: c.body,
-  }));
+}: {
+  steps: readonly ProcessStepView[];
+  eyebrow?: string;
+  heading: string;
+  coverImage?: string;
+  className?: string;
+}) {
+  const chapters = toChapters(steps);
   const trackRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion() === true;
   const { scrollYProgress } = useScroll({
@@ -170,14 +273,17 @@ export function ScrollScene({
   const innerRingOpacity = useTransform(ringOpacity, (value) => value * 0.7);
 
   const headingId = "scroll-scene-heading";
+  if (chapters.length === 0) return null;
+  // ~85vh of scrolling per step (4 steps → 340vh).
+  const trackHeight = `${Math.max(2, chapters.length) * 85}vh`;
 
   return (
     <section
       ref={trackRef}
-      id="craft"
+      id="process"
       aria-labelledby={headingId}
       className={cn("relative w-full", className)}
-      style={{ height: reducedMotion ? "auto" : "280vh" }}
+      style={{ height: reducedMotion ? "auto" : trackHeight }}
     >
       <div
         className={cn(
@@ -208,10 +314,10 @@ export function ScrollScene({
             <div className="relative min-h-[11rem] w-full max-w-xl">
               {chapters.map((chapter, index) => (
                 <ChapterPanel
-                  total={chapters.length}
                   key={chapter.id}
                   chapter={chapter}
                   index={index}
+                  total={chapters.length}
                   progress={scrollYProgress}
                   reducedMotion={reducedMotion}
                 />
@@ -219,7 +325,7 @@ export function ScrollScene({
             </div>
             {!reducedMotion ? (
               <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-muted">
-                Scroll to move through depth
+                Keep scrolling — your project moves forward
               </p>
             ) : null}
           </div>
@@ -250,8 +356,7 @@ export function ScrollScene({
               }}
             >
               <Image
-                src={coverImage}
-                unoptimized={!isOptimizableImage(coverImage)}
+                {...imageSource(coverImage || SCROLL_SCENE_COVER)}
                 alt=""
                 fill
                 sizes="(max-width: 1024px) 90vw, 36rem"
@@ -262,7 +367,7 @@ export function ScrollScene({
             </motion.div>
 
             <motion.div
-              className="absolute aspect-[3/4] w-[46%] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60 sm:w-[42%]"
+              className="absolute w-[64%] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60 sm:w-[56%]"
               style={{
                 x: profileX,
                 y: profileY,
@@ -272,16 +377,11 @@ export function ScrollScene({
                 transformStyle: "preserve-3d",
               }}
             >
-              <Image
-                src={profileImage}
-                unoptimized={!isOptimizableImage(profileImage)}
-                alt={profileAlt}
-                fill
-                sizes="(max-width: 768px) 45vw, 16rem"
-                className="object-cover object-[center_12%]"
-                priority
+              <ProjectBoard
+                chapters={chapters}
+                progress={scrollYProgress}
+                reducedMotion={reducedMotion}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
             </motion.div>
           </div>
         </div>

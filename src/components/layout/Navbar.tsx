@@ -67,9 +67,6 @@ export function Navbar({ className }: NavbarProps) {
         >
           {/* Decorative: the link is already named by aria-label. */}
           <BrandLogo size={40} priority className="h-10 w-10" alt="" />
-          <span className="ml-space-2 hidden font-display text-body font-semibold tracking-tight text-text lg:inline">
-            {studioName}
-          </span>
         </Link>
 
         {/* Desktop inline links — hidden on small screens. */}

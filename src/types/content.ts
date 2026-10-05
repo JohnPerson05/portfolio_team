@@ -27,45 +27,44 @@ export interface ProjectMediaView {
   altText?: string;
 }
 
-/** A technology tag as shown (quietly) on a project. */
-export interface TechnologyTagView {
-  name: string;
-  slug: string;
-  icon?: string;
-}
-
-/** A project as rendered by the public site and the admin preview. */
+/**
+ * A project as rendered by the public site and the admin preview. The core
+ * fields keep the original portfolio's names so the original UI renders
+ * unchanged; the rest are CMS additions.
+ */
 export interface ProjectView {
   id: string;
   title: string;
   slug: string;
-  category?: string;
-  tagline?: string;
-  shortDescription: string;
-  description?: string;
+  summary: string;
   problem: string;
   solution: string;
-  result: string;
-  /** Card/listing image. Falls back to the first gallery image. */
-  coverImage?: string;
-  /** Large image at the top of the case study. Falls back to the cover. */
-  heroImage?: string;
-  projectUrl?: string;
+  impact: string;
+  technologies: string[];
+  /** Ordered project gallery (images); the first is used as the card cover. */
+  imageUrls?: string[];
+  thumbnailUrl?: string;
   githubUrl?: string;
+  liveUrl?: string;
+  featured: boolean;
+  order: number;
+
+  category?: string;
+  tagline?: string;
+  description?: string;
+  heroImage?: string;
   otherUrl?: string;
   otherUrlLabel?: string;
   clientName?: string;
   year?: number;
-  featured: boolean;
-  displayOrder: number;
   seoTitle?: string;
   seoDescription?: string;
   ogImage?: string;
+  /** Full gallery including videos/embeds, with captions and alt text. */
+  media?: ProjectMediaView[];
   /** ISO-8601, or null while unpublished. */
-  publishedAt: string | null;
-  updatedAt: string;
-  media: ProjectMediaView[];
-  technologies: TechnologyTagView[];
+  publishedAt?: string | null;
+  updatedAt?: string;
 }
 
 /** A team member as rendered on the public site. */

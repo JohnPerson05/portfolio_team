@@ -73,37 +73,39 @@ function opt<T>(value: T | null | undefined): T | undefined {
 }
 
 export function toProjectView(row: ProjectWithRelations): ProjectView {
-  const firstImage = row.media.find(
-    (m) => m.mediaType === "IMAGE" || m.mediaType === "GIF",
-  )?.url;
-  const coverImage = opt(row.coverImage) ?? firstImage;
+  const images = row.media
+    .filter((m) => m.mediaType === "IMAGE" || m.mediaType === "GIF")
+    .map((m) => m.url);
+  const cover = opt(row.coverImage) ?? images[0];
+  // Card/gallery order: the chosen cover first, then the rest of the gallery.
+  const imageUrls = cover ? [cover, ...images.filter((u) => u !== cover)] : images;
 
   return {
     id: row.id,
     title: row.title,
     slug: row.slug,
-    category: opt(row.category),
-    tagline: opt(row.tagline),
-    shortDescription: row.shortDescription,
-    description: opt(row.description),
+    summary: row.shortDescription,
     problem: row.problem,
     solution: row.solution,
-    result: row.result,
-    coverImage,
-    heroImage: opt(row.heroImage) ?? coverImage,
-    projectUrl: opt(row.projectUrl),
+    impact: row.result,
+    technologies: row.technologies.map(({ technology }) => technology.name),
+    imageUrls,
+    thumbnailUrl: cover,
     githubUrl: opt(row.githubUrl),
+    liveUrl: opt(row.projectUrl),
+    featured: row.featured,
+    order: row.displayOrder,
+    category: opt(row.category),
+    tagline: opt(row.tagline),
+    description: opt(row.description),
+    heroImage: opt(row.heroImage),
     otherUrl: opt(row.otherUrl),
     otherUrlLabel: opt(row.otherUrlLabel),
     clientName: opt(row.clientName),
     year: opt(row.year),
-    featured: row.featured,
-    displayOrder: row.displayOrder,
     seoTitle: opt(row.seoTitle),
     seoDescription: opt(row.seoDescription),
     ogImage: opt(row.ogImage),
-    publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
-    updatedAt: row.updatedAt.toISOString(),
     media: row.media.map((m) => ({
       id: m.id,
       mediaType: m.mediaType,
@@ -113,11 +115,8 @@ export function toProjectView(row: ProjectWithRelations): ProjectView {
       caption: opt(m.caption),
       altText: opt(m.altText),
     })),
-    technologies: row.technologies.map(({ technology }) => ({
-      name: technology.name,
-      slug: technology.slug,
-      icon: opt(technology.icon),
-    })),
+    publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -183,10 +182,14 @@ export const getAdjacentProjects = cache(
 /* -------------------------------------------------------------------------- */
 
 export function initialsFor(name: string): string {
-  const letters = name
-    .replace(/\[|\]/g, "")
+  const words = name
+    .replace(/\[.*?\]/g, " ")
     .split(/\s+/)
-    .filter(Boolean)
+    .filter((word) => /^[A-Za-z]/.test(word));
+  const first = words[0] ?? "";
+  // Keep short acronyms whole ("IAM"), otherwise use first letters.
+  if (/^[A-Z]{2,3}$/.test(first)) return first;
+  const letters = words
     .slice(0, 2)
     .map((word) => word[0])
     .join("")
@@ -322,7 +325,9 @@ export const getHomepageSections = cache(
     } catch (error) {
       console.error("Failed to load homepage sections; using defaults", error);
     }
-    return HOMEPAGE_SECTION_DEFAULTS;
+    return HOMEPAGE_SECTION_DEFAULTS.filter((s) => s.enabled !== false).map(
+      ({ enabled: _enabled, ...section }) => section,
+    );
   },
 );
 

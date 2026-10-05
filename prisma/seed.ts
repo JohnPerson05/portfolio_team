@@ -161,10 +161,10 @@ async function seedSiteStructure(): Promise<void> {
   }
 
   const sectionCount = await prisma.homepageSection.count();
-  for (const [index, section] of HOMEPAGE_SECTION_DEFAULTS.entries()) {
+  for (const [index, { enabled, ...section }] of HOMEPAGE_SECTION_DEFAULTS.entries()) {
     if (await prisma.homepageSection.findUnique({ where: { key: section.key } })) continue;
     await prisma.homepageSection.create({
-      data: { ...section, displayOrder: sectionCount + index, isEnabled: true },
+      data: { ...section, displayOrder: sectionCount + index, isEnabled: enabled !== false },
     });
     bump("homepage sections");
   }

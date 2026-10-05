@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 
 import { CapabilityTicker, Hero } from "@/features/hero";
-import { heroContentFromSettings } from "@/features/hero/config";
-import { Services, Team, WhyUs } from "@/features/studio";
 import { ScrollScene } from "@/features/scroll-scene";
 import { TrustStats, toTrustStats } from "@/features/trust";
 import { FeaturedProjects } from "@/features/projects";
+import { Skills } from "@/features/skills";
+import { Timeline } from "@/features/experience";
 import { Testimonials } from "@/features/testimonials";
+import { BlogPreview } from "@/features/blog";
 import { ContactForm } from "@/features/contact";
+import { Services, Team, WhyUs } from "@/features/studio";
+import { ScrollScene as ProcessScene } from "@/features/scroll-scene/ProcessScene";
 import type { SiteSettings } from "@/server/settings/registry";
 import type {
   HomepageSectionView,
@@ -32,67 +35,66 @@ export interface HomeData {
 type Renderer = (section: HomepageSectionView, data: HomeData) => ReactNode;
 
 /**
- * One renderer per homepage section key. The CMS (Homepage) controls which
- * sections are enabled, their order, and their eyebrow/title/description;
- * sections with no published content render nothing.
+ * One renderer per homepage section key. Defaults reproduce the original
+ * portfolio homepage (plus Team); the CMS (Homepage) controls which sections
+ * are enabled, their order, and their headings.
  */
 const RENDERERS: Record<string, Renderer> = {
-  hero: (_s, d) => {
-    const content = heroContentFromSettings(d.settings, d.social);
-    // Featured members first, then the rest, in display order.
-    const heroMembers = [
-      ...d.team.filter((m) => m.isFeatured),
-      ...d.team.filter((m) => !m.isFeatured),
-    ].slice(0, 2);
-    return <Hero {...content} members={heroMembers} />;
-  },
+  hero: (_s, d) => (
+    <Hero
+      name={d.settings["hero.name"]}
+      role={d.settings["hero.role"]}
+      valueProposition={d.settings["hero.subtitle"]}
+      avatarUrl={d.settings["hero.portrait"]}
+      coverUrl={d.settings["hero.cover"]}
+      links={d.social}
+    />
+  ),
+  craft: (_s, d) => (
+    <ScrollScene
+      eyebrow={d.settings["craft.eyebrow"]}
+      heading={d.settings["craft.heading"]}
+      chapters={d.settings["craft.chapters"]}
+      coverImage={d.settings["hero.cover"]}
+      profileImage={d.settings["hero.portrait"]}
+      profileAlt={`${d.settings["hero.name"]} portrait`}
+    />
+  ),
   ticker: (_s, d) => <CapabilityTicker items={d.settings["home.tickerItems"]} />,
+  stats: (s, d) =>
+    d.settings["home.stats"].length > 0 ? (
+      <TrustStats stats={toTrustStats(d.settings["home.stats"])} eyebrow={s.eyebrow} heading={s.title} />
+    ) : null,
   team: (s, d) => (
     <Team
       members={d.team}
       eyebrow={s.eyebrow}
-      heading={s.title ?? d.settings["studio.tagline"]}
+      heading={s.title ?? "The team"}
       description={s.description}
-      overlap={{
-        title: d.settings["home.overlapTitle"],
-        body: d.settings["home.overlapBody"],
-        points: d.settings["home.overlapPoints"],
-      }}
+      showBackground
     />
   ),
+  work: (s, d) => <FeaturedProjects projects={d.projects} eyebrow={s.eyebrow} heading={s.title} />,
+  skills: () => <Skills compact />,
+  experience: () => <Timeline />,
+  testimonials: (s, d) => (
+    <Testimonials testimonials={d.testimonials} eyebrow={s.eyebrow} heading={s.title} />
+  ),
+  blog: () => <BlogPreview />,
+  contact: () => <ContactForm />,
+
+  // Optional sections (disabled by default).
   services: (s, d) => (
-    <Services
-      services={d.services}
-      eyebrow={s.eyebrow}
-      heading={s.title ?? "What we help with"}
-      description={s.description}
-      showAllLink
-    />
+    <Services services={d.services} eyebrow={s.eyebrow} heading={s.title ?? "Services"} description={s.description} />
   ),
   process: (s, d) => (
-    <ScrollScene
+    <ProcessScene
       steps={d.steps}
       eyebrow={s.eyebrow}
       heading={s.title ?? "How we work"}
       coverImage={d.settings["home.processCover"]}
     />
   ),
-  work: (s, d) => (
-    <FeaturedProjects
-      projects={d.projects}
-      eyebrow={s.eyebrow}
-      heading={s.title}
-      description={s.description}
-    />
-  ),
-  stats: (s, d) =>
-    d.settings["home.stats"].length > 0 ? (
-      <TrustStats
-        stats={toTrustStats(d.settings["home.stats"])}
-        eyebrow={s.eyebrow}
-        heading={s.title}
-      />
-    ) : null,
   "why-us": (s, d) => (
     <WhyUs
       reasons={d.settings["home.whyUsReasons"]}
@@ -100,19 +102,6 @@ const RENDERERS: Record<string, Renderer> = {
       heading={s.title ?? "Why work with us"}
       cta={{ label: d.settings["cta.text"], href: d.settings["cta.url"] }}
     />
-  ),
-  // Only real, published testimonials — the section disappears when there are none.
-  testimonials: (s, d) =>
-    d.testimonials.length > 0 ? (
-      <Testimonials
-        testimonials={d.testimonials}
-        eyebrow={s.eyebrow}
-        heading={s.title}
-        description={s.description}
-      />
-    ) : null,
-  contact: (s) => (
-    <ContactForm eyebrow={s.eyebrow} heading={s.title} description={s.description} />
   ),
 };
 
@@ -127,12 +116,12 @@ export function HomeSections({
     <>
       {sections.map((section) => {
         const render = RENDERERS[section.key];
-        return render ? <SectionSlot key={section.key}>{render(section, data)}</SectionSlot> : null;
+        return render ? <Slot key={section.key}>{render(section, data)}</Slot> : null;
       })}
     </>
   );
 }
 
-function SectionSlot({ children }: { children: ReactNode }) {
+function Slot({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }

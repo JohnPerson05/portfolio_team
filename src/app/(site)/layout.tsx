@@ -63,11 +63,8 @@ export default async function SiteLayout({
           <Footer
             studioName={settings["studio.name"]}
             text={settings["footer.text"]}
-            exploreLinks={navigation.header}
-            secondaryLinks={navigation.footer}
+            links={navigation.header}
             socialLinks={socialLinks(settings)}
-            contactEmail={settings["contact.email"] || undefined}
-            cta={cta}
           />
           <BackToTop />
         </SiteChromeProvider>

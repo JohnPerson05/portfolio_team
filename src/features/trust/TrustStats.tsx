@@ -45,7 +45,7 @@ export interface TrustStatsProps {
 export function TrustStats({
   stats = TRUST_STATS,
   eyebrow = "By the numbers",
-  heading = "Enterprise experience, small-team attention",
+  heading = "Proven, measurable impact",
   showDetailLink = true,
   className,
 }: TrustStatsProps) {
@@ -72,7 +72,7 @@ export function TrustStats({
         <dl
           className={cn(
             "grid grid-cols-2 gap-space-2 sm:gap-space-3",
-            "lg:grid-cols-4",
+            "lg:grid-cols-5",
           )}
         >
           {stats.map((stat) => (
@@ -95,7 +95,7 @@ export function TrustStats({
             href="/about"
             className="mx-auto inline-flex min-h-11 items-center font-mono text-caption uppercase tracking-widest text-accent transition-colors hover:text-text"
           >
-            Meet the team&nbsp; →
+            About the engineering practice&nbsp; →
           </Link>
         ) : null}
       </div>

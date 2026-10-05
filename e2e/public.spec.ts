@@ -8,11 +8,14 @@ test("homepage renders the complete studio story without horizontal overflow", a
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   for (const id of [
+    "craft",
+    "trust",
     "team",
-    "services",
-    "process",
-    "work",
-    "why",
+    "projects",
+    "skills",
+    "experience",
+    "testimonials",
+    "blog",
     "contact",
   ]) {
     await expect(page.locator(`section#${id}`)).toBeAttached();
@@ -27,16 +30,16 @@ test("homepage renders the complete studio story without horizontal overflow", a
 });
 
 test("work archive and case studies are database-driven", async ({ page, request }) => {
-  await page.goto("/work");
-  const firstCase = page.locator("a[href^='/work/']").first();
+  await page.goto("/projects");
+  const firstCase = page.locator("a[href^='/projects/']").first();
   const href = await firstCase.getAttribute("href");
   expect(href).toBeTruthy();
   await page.goto(href!);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByText("What got better")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
 
-  expect((await request.get("/work/this-project-does-not-exist")).status()).toBe(404);
-  expect((await request.get("/projects", { maxRedirects: 0 })).status()).toBe(308);
+  expect((await request.get("/projects/this-project-does-not-exist")).status()).toBe(404);
+  expect((await request.get("/work", { maxRedirects: 0 })).status()).toBe(308);
 });
 
 test("public pages have no automatically detectable accessibility violations", async ({

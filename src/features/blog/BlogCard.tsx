@@ -4,6 +4,7 @@ import { Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { PostView } from "@/types";
 import { formatPublishedDate } from "./config";
+import { isOptimizableImage } from "@/lib/images";
 
 export interface BlogCardProps {
   /** The published post to render. */
@@ -50,6 +51,7 @@ export function BlogCard({ post, className }: BlogCardProps) {
           <div className="relative aspect-video w-full overflow-hidden border-b border-hairline bg-bg-secondary">
             <Image
               src={post.coverUrl}
+              unoptimized={!isOptimizableImage(post.coverUrl)}
               alt={`${post.title} cover`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

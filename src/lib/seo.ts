@@ -130,23 +130,23 @@ export function studioJsonLd(
 
 /** CreativeWork JSON-LD for a case study page. */
 export function projectJsonLd(project: ProjectView, studioName: string) {
-  const url = absoluteUrl(`/work/${project.slug}`);
+  const url = absoluteUrl(`/projects/${project.slug}`);
   return {
     "@context": "https://schema.org",
     "@type": "CreativeWork",
     name: project.title,
     headline: project.seoTitle ?? project.title,
-    description: project.seoDescription ?? project.shortDescription,
+    description: project.seoDescription ?? project.summary,
     url,
     mainEntityOfPage: url,
-    ...(project.ogImage || project.coverImage
-      ? { image: absoluteUrl((project.ogImage ?? project.coverImage) as string) }
+    ...(project.ogImage || project.thumbnailUrl
+      ? { image: absoluteUrl((project.ogImage ?? project.thumbnailUrl) as string) }
       : {}),
     ...(project.category ? { genre: project.category } : {}),
     ...(project.publishedAt ? { datePublished: project.publishedAt } : {}),
-    dateModified: project.updatedAt,
+    ...(project.updatedAt ? { dateModified: project.updatedAt } : {}),
     ...(project.technologies.length > 0
-      ? { keywords: project.technologies.map((t) => t.name).join(", ") }
+      ? { keywords: project.technologies.join(", ") }
       : {}),
     creator: { "@type": "Organization", name: studioName, url: getSiteUrl().toString() },
   };

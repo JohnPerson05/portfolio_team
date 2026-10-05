@@ -29,11 +29,15 @@ const COPY_FIELDS: Record<string, ("eyebrow" | "title" | "description")[]> = {
 };
 
 const NOTES: Record<string, string> = {
-  hero: "Text and buttons are edited in Settings → Hero.",
-  ticker: "Items are edited in Settings → Homepage content.",
+  hero: "Name, role, intro, and images are edited in Settings → Hero.",
+  craft: "Heading and chapters are edited in Settings → Homepage content.",
+  skills: "Shows the toolkit (skills records; not yet editable in the CMS).",
+  experience: "Shows the career timeline (experience records; not yet editable in the CMS).",
+  blog: "Shows the latest published blog posts.",
+  team: "Shows published members from Team.",
   stats: "Numbers are edited in Settings → Homepage content.",
   "why-us": "Reasons are edited in Settings → Homepage content.",
-  testimonials: "Hidden automatically until a testimonial is published.",
+  testimonials: "Shows published testimonials (or an empty state).",
   work: "Shows featured projects (or the newest published ones).",
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ProjectCaseStudy } from "@/features/projects";
+import { ProjectDetail } from "@/features/projects";
 import { getProjectForPreview, getProjectPreviewMeta } from "@/server/admin/queries";
 
 interface Props {
@@ -43,7 +43,7 @@ export default async function ProjectPreviewPage({ params }: Props) {
         </span>
         <span className="flex items-center gap-3">
           {meta.status === "PUBLISHED" && !meta.deletedAt ? (
-            <Link href={`/work/${meta.slug}`} className="underline underline-offset-2">
+            <Link href={`/projects/${meta.slug}`} className="underline underline-offset-2">
               Open live page
             </Link>
           ) : null}
@@ -53,7 +53,7 @@ export default async function ProjectPreviewPage({ params }: Props) {
         </span>
       </div>
       <main>
-        <ProjectCaseStudy project={project} index="00" preview />
+        <ProjectDetail project={project} />
       </main>
     </>
   );

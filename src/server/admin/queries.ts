@@ -338,7 +338,7 @@ export async function listHomepageSectionsForEdit() {
         eyebrow: d.eyebrow ?? "",
         title: d.title ?? "",
         description: d.description ?? "",
-        isEnabled: true,
+        isEnabled: d.enabled !== false,
       });
     }
   }

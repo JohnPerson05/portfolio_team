@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const sectionRoutes = [
     "/about",
-    "/work",
+    "/projects",
     "/services",
     "/skills",
     "/experience",
@@ -37,11 +37,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absoluteUrl(path),
       lastModified: now,
       changeFrequency: "monthly" as const,
-      priority: path === "/work" ? 0.9 : 0.7,
+      priority: path === "/projects" ? 0.9 : 0.7,
     })),
     ...projects.map((project) => ({
-      url: absoluteUrl(`/work/${project.slug}`),
-      lastModified: new Date(project.updatedAt),
+      url: absoluteUrl(`/projects/${project.slug}`),
+      lastModified: project.updatedAt ? new Date(project.updatedAt) : now,
       changeFrequency: "monthly" as const,
       priority: 0.8,
     })),

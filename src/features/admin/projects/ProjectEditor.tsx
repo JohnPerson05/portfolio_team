@@ -408,7 +408,7 @@ export function ProjectEditor({
                 label="Slug"
                 required
                 error={errors.slug}
-                hint={`Public address: /work/${form.slug || "your-project"}`}
+                hint={`Public address: /projects/${form.slug || "your-project"}`}
                 className="sm:col-span-2"
                 aside={
                   isLive ? "Changing it breaks existing links" : !slugTouched ? "Auto-filled from the name" : undefined
@@ -416,7 +416,7 @@ export function ProjectEditor({
               >
                 <div className="flex">
                   <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-300 bg-zinc-50 px-2.5 text-[13px] text-zinc-500">
-                    /work/
+                    /projects/
                   </span>
                   <AdminInput
                     {...fieldProps("slug", errors.slug)}
@@ -429,7 +429,7 @@ export function ProjectEditor({
                   />
                 </div>
               </FormField>
-              <FormField id="category" label="Category" error={errors.category} hint="Used for the filter on /work.">
+              <FormField id="category" label="Category" error={errors.category} hint="Used to group projects.">
                 <AdminInput
                   {...fieldProps("category", errors.category)}
                   list="project-categories"
@@ -793,7 +793,7 @@ export function ProjectEditor({
             <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
               {isLive ? (
                 <a
-                  href={`/work/${project.slug}`}
+                  href={`/projects/${project.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-[13px] font-medium text-zinc-600 hover:text-zinc-900"

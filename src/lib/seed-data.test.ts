@@ -56,7 +56,7 @@ describe("seed team", () => {
     for (const member of teamMembers) {
       if (member.name.includes("[EDIT ME]")) expect(member.isPublished).toBe(false);
     }
-    expect(teamMembers.some((m) => m.isPublished)).toBe(true);
+    expect(teamMembers.filter((m) => m.isPublished).length).toBeGreaterThanOrEqual(2);
   });
 });
 
