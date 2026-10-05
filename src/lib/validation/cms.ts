@@ -191,6 +191,17 @@ export const teamMemberSchema = z.object({
   responsibilities: stringList(12, 200, "Responsibilities"),
   skills: stringList(40, 80, "Skills"),
   experience: optionalString(200, "Experience"),
+  highlights: stringList(30, 400, "Highlights"),
+  skillGroups: z
+    .array(
+      z.object({
+        label: requiredString(80, "Skill group name"),
+        items: stringList(30, 80, "Skills"),
+      }),
+    )
+    .max(12, "No more than 12 skill groups")
+    .default([]),
+  focus: optionalString(3_000, "Professional focus"),
   displayOrder: displayOrderSchema,
   isFeatured: z.boolean().default(false),
   isPublished: z.boolean().default(false),

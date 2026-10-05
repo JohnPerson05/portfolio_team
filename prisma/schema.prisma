@@ -167,6 +167,12 @@ model TeamMember {
   skills       String[]  @default([])
   /// Short experience headline, e.g. "~6 years building web products".
   experience   String?
+  /// Key responsibilities & contributions, shown on the member's profile page.
+  highlights   String[]  @default([])
+  /// Grouped skills: `[{ "label": "Automation & Scripting", "items": ["PowerShell", …] }]`.
+  skillGroups  Json      @default("[]")
+  /// "Professional focus" paragraph on the profile page.
+  focus        String?
   displayOrder Int       @default(0)
   isFeatured   Boolean   @default(false)
   isPublished  Boolean   @default(false)

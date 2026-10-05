@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ __esModule: true, default: {}, prisma: {} }));
 
-import { initialsFor, PUBLIC_PROJECT_WHERE, socialLinks, toProjectView, type ProjectWithRelations } from "./queries";
+import { initialsFor, PUBLIC_PROJECT_WHERE, socialLinks, toProjectView, toSkillGroups, type ProjectWithRelations } from "./queries";
 import { defaultSettings } from "@/server/settings/registry";
 
 function row(overrides: Partial<ProjectWithRelations> = {}): ProjectWithRelations {
@@ -85,5 +85,21 @@ describe("public read model", () => {
     expect(initialsFor("IAM & IT Operations Specialist")).toBe("IAM");
     const settings = { ...defaultSettings(), "social.linkedin": "https://linkedin.com/in/x" };
     expect(socialLinks(settings)).toEqual([{ label: "LinkedIn", href: "https://linkedin.com/in/x" }]);
+  });
+});
+
+describe("toSkillGroups", () => {
+  it("keeps well-formed groups and drops malformed JSON", () => {
+    expect(
+      toSkillGroups([
+        { label: "Automation", items: ["PowerShell", "", 3, "Python"] },
+        { label: "", items: ["x"] },
+        { label: "Empty", items: [] },
+        "nope",
+        null,
+      ]),
+    ).toEqual([{ label: "Automation", items: ["PowerShell", "Python"] }]);
+    expect(toSkillGroups({ label: "x" })).toEqual([]);
+    expect(toSkillGroups(null)).toEqual([]);
   });
 });

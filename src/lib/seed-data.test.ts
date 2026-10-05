@@ -10,6 +10,7 @@ import {
   teamMembers,
 } from "../../prisma/seed-data";
 import { SETTING_DEFINITIONS } from "../server/settings/registry";
+import { teamMemberSchema } from "./validation/cms";
 import { HOMEPAGE_SECTION_DEFAULTS, NAVIGATION_DEFAULTS } from "../server/content/defaults";
 
 // Invariants for the fresh-database seed. They run against the exported data
@@ -57,6 +58,15 @@ describe("seed team", () => {
       if (member.name.includes("[EDIT ME]")) expect(member.isPublished).toBe(false);
     }
     expect(teamMembers.filter((m) => m.isPublished).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("passes the same validation as Admin → Team, with unique slugs", () => {
+    const slugs = teamMembers.map((m) => m.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const member of teamMembers) {
+      const result = teamMemberSchema.safeParse(member);
+      expect(result.error?.issues ?? []).toEqual([]);
+    }
   });
 });
 

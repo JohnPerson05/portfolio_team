@@ -8,7 +8,7 @@ import { getTeamMembers } from "@/server/public/queries";
 export const metadata: Metadata = createPageMetadata({
   title: "Experience",
   description:
-    "11+ years of combined experience across enterprise engineering, Identity & Access Management, and IT operations.",
+    "13+ years of combined experience across enterprise engineering, Identity & Access Management, and IT operations.",
   path: "/experience",
 });
 
@@ -19,7 +19,7 @@ export default async function ExperiencePage() {
       <PageHero
         index="03"
         eyebrow="Experience"
-        title="11+ years of combined enterprise experience."
+        title="13+ years of combined enterprise experience."
         description="Banking, insurance, live-meeting, and enterprise web applications on the engineering side—Identity & Access Management, IT operations, and enterprise technology support on the operations side."
       />
       <Team

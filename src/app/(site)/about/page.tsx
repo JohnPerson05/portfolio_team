@@ -99,7 +99,7 @@ const EXPERTISE = [
 /** At-a-glance facts for the studio profile card. */
 const STUDIO_FACTS = [
   ["Team", "2 specialists"],
-  ["Combined experience", "11+ years"],
+  ["Combined experience", "13+ years"],
   ["Engineering", "Backend / Full Stack"],
   ["Operations", "IAM & IT Operations"],
   ["Delivery", "Enterprise & MVP"],
@@ -164,7 +164,7 @@ export default async function AboutPage() {
         index="00"
         eyebrow="About us"
         title="Engineering depth. Secure operations. One team."
-        description="We are a two-person team: a backend and full-stack engineer with approximately six years of enterprise delivery, and an IT professional with 5+ years in Identity & Access Management and enterprise IT operations."
+        description="We are a two-person team: a backend and full-stack engineer with approximately six years of enterprise delivery, and an IT professional with 7+ years in enterprise IT, Identity & Access Management, automation, and compliance."
       />
 
       <Team

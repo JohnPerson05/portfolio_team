@@ -140,7 +140,7 @@ export default function SkillsPage() {
         index="02"
         eyebrow="Capabilities"
         title="Build it. Secure it. Run it."
-        description="A combined capability set shaped by 11+ years of enterprise experience—Java services, modern product interfaces, cloud pipelines and observability on one side; Identity & Access Management, IT operations, and service management on the other."
+        description="A combined capability set shaped by 13+ years of enterprise experience—Java services, modern product interfaces, cloud pipelines and observability on one side; Identity & Access Management, IT operations, and service management on the other."
       />
 
       <section className="px-space-2 py-section sm:px-space-4">

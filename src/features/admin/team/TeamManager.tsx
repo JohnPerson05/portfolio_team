@@ -50,8 +50,36 @@ interface MemberForm {
   responsibilities: string[];
   skills: string[];
   experience: string;
+  highlights: string[];
+  /** One group per line: "Group name: skill, skill, skill". */
+  skillGroups: string;
+  focus: string;
   isPublished: boolean;
   isFeatured: boolean;
+}
+
+function skillGroupsToText(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((group: { label?: unknown; items?: unknown }) =>
+      typeof group?.label === "string" && Array.isArray(group.items)
+        ? `${group.label}: ${group.items.join(", ")}`
+        : "",
+    )
+    .filter(Boolean)
+    .join("\n");
+}
+
+function textToSkillGroups(text: string): { label: string; items: string[] }[] {
+  return text
+    .split("\n")
+    .map((line) => {
+      const colon = line.indexOf(":");
+      const label = (colon >= 0 ? line.slice(0, colon) : line).trim();
+      const items = colon >= 0 ? line.slice(colon + 1).split(",").map((i) => i.trim()).filter(Boolean) : [];
+      return { label, items };
+    })
+    .filter((group) => group.label !== "");
 }
 
 const EMPTY: MemberForm = {
@@ -69,6 +97,9 @@ const EMPTY: MemberForm = {
   responsibilities: [],
   skills: [],
   experience: "",
+  highlights: [],
+  skillGroups: "",
+  focus: "",
   isPublished: false,
   isFeatured: false,
 };
@@ -89,6 +120,9 @@ function toForm(m: TeamMemberRow): MemberForm {
     responsibilities: m.responsibilities ?? [],
     skills: m.skills ?? [],
     experience: m.experience ?? "",
+    highlights: m.highlights ?? [],
+    skillGroups: skillGroupsToText(m.skillGroups),
+    focus: m.focus ?? "",
     isPublished: m.isPublished,
     isFeatured: m.isFeatured,
   };
@@ -125,7 +159,7 @@ export function TeamManager({ members }: { members: TeamMemberRow[] }) {
 
   const save = () =>
     form.submit(
-      (id, v) => saveTeamMember(id, { ...v, displayOrder: id ? members.find((m) => m.id === id)?.displayOrder ?? 0 : active.length }),
+      (id, v) => saveTeamMember(id, { ...v, skillGroups: textToSkillGroups(v.skillGroups), displayOrder: id ? members.find((m) => m.id === id)?.displayOrder ?? 0 : active.length }),
       form.editingId ? "Team member saved" : "Team member added",
     );
 
@@ -321,8 +355,34 @@ export function TeamManager({ members }: { members: TeamMemberRow[] }) {
           max={40}
           error={errors.skills}
         />
+        <StringListEditor
+          label="Responsibilities & contributions"
+          hint="Shown on their profile page."
+          value={values.highlights}
+          onChange={(v) => set("highlights", v)}
+          placeholder="Automate repetitive IT processes with PowerShell and Python"
+          max={30}
+          error={errors.highlights}
+        />
+        <FormField
+          id="m-groups"
+          label="Skill groups"
+          error={errors.skillGroups}
+          hint="One group per line — “Group name: skill, skill, skill”. Shown on their profile page."
+        >
+          <AdminTextarea
+            {...fieldProps("m-groups", errors.skillGroups)}
+            rows={5}
+            value={values.skillGroups}
+            onChange={(e) => set("skillGroups", e.target.value)}
+            placeholder={"Automation & Scripting: PowerShell, Python\nCloud: Microsoft Azure"}
+          />
+        </FormField>
+        <FormField id="m-focus" label="Professional focus" error={errors.focus} hint="Closing paragraph on their profile page.">
+          <AdminTextarea {...fieldProps("m-focus", errors.focus)} rows={4} value={values.focus} onChange={(e) => set("focus", e.target.value)} />
+        </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id="m-exp" label="Experience line" error={errors.experience} hint="e.g. 5+ years in enterprise IT">
+          <FormField id="m-exp" label="Experience line" error={errors.experience} hint="e.g. 7+ years in enterprise IT">
             <AdminInput {...fieldProps("m-exp", errors.experience)} value={values.experience} onChange={(e) => set("experience", e.target.value)} />
           </FormField>
           <FormField id="m-loc" label="Location" error={errors.location}>

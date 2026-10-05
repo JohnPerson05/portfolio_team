@@ -29,7 +29,7 @@ export interface SettingChapter {
 }
 
 const VALUE_PROPOSITION =
-  "A two-person delivery team: backend and full-stack engineering with ~6 years of enterprise experience, paired with 5+ years of Identity & Access Management and IT operations — so what we build is secure, supported, and ready for real users.";
+  "A two-person delivery team: backend and full-stack engineering with ~6 years of enterprise experience, paired with 7+ years of Identity & Access Management, IT automation, and compliance — so what we build is secure, supported, and ready for real users.";
 
 export interface SiteSettings {
   "studio.name": string;

@@ -67,6 +67,12 @@ export interface ProjectView {
   updatedAt?: string;
 }
 
+/** A labelled group of skills on a member's profile. */
+export interface TeamSkillGroup {
+  label: string;
+  items: string[];
+}
+
 /** A team member as rendered on the public site. */
 export interface TeamMemberView {
   id: string;
@@ -84,6 +90,11 @@ export interface TeamMemberView {
   responsibilities: string[];
   skills: string[];
   experience?: string;
+  /** Key responsibilities & contributions (profile page). */
+  highlights: string[];
+  skillGroups: TeamSkillGroup[];
+  /** "Professional focus" paragraph (profile page). */
+  focus?: string;
   /** Featured members lead the homepage hero. */
   isFeatured: boolean;
   /** Monogram shown when there is no profile image. */

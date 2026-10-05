@@ -245,9 +245,50 @@ export interface SeedTeamMember {
   responsibilities: string[];
   skills: string[];
   experience: string;
+  highlights?: string[];
+  skillGroups?: { label: string; items: string[] }[];
+  focus?: string;
   isPublished: boolean;
   isFeatured: boolean;
 }
+
+const LEYAHN_SKILL_GROUPS = [
+  {
+    label: "Automation & Scripting",
+    items: ["PowerShell", "Python", "Task & Workflow Automation", "Process Automation", "Data Processing"],
+  },
+  {
+    label: "API & Integration",
+    items: ["REST APIs", "API Integration", "System-to-System Integration", "Automated Data Exchange"],
+  },
+  {
+    label: "Cloud & Enterprise Technology",
+    items: ["Microsoft Azure", "Cloud-Based Services", "Enterprise IT Systems"],
+  },
+  {
+    label: "IT & Security",
+    items: [
+      "Identity & Access Management (IAM)",
+      "Cybersecurity",
+      "Information Security",
+      "Access Governance",
+      "Security Controls",
+      "IT Audit & Compliance",
+      "Risk Management",
+    ],
+  },
+  {
+    label: "Reporting & Operations",
+    items: [
+      "Operational Reporting",
+      "Data Validation",
+      "Audit Reporting",
+      "Process Documentation",
+      "Technical Troubleshooting",
+      "Continuous Process Improvement",
+    ],
+  },
+];
 
 export const teamMembers: SeedTeamMember[] = [
   {
@@ -283,28 +324,46 @@ export const teamMembers: SeedTeamMember[] = [
     isFeatured: true,
   },
   {
-    // Profile supplied by the owner. Name and photo not provided yet — the
-    // site shows a "Photo coming soon" placeholder; update both in Admin → Team.
-    name: "IAM & IT Operations Specialist",
-    slug: "second-team-member",
-    role: "Identity & Access Management · IT Operations",
+    // Profile supplied by the owner on 2026-10-06. No photo yet — the site
+    // shows a "Photo coming soon" placeholder; upload one in Admin → Team.
+    name: "Leyahn Mallorca",
+    slug: "leyahn-mallorca",
+    role: "IT Professional · IAM, Automation & Compliance",
     shortBio:
-      "Keeps access secure and enterprise operations running — the right people, the right access, no downtime surprises.",
-    bio: "Results-driven IT professional with 5+ years of experience in enterprise technology and Identity & Access Management. Experienced in supporting technology operations, managing identity-related processes, troubleshooting technical issues, and delivering reliable IT services within a corporate environment.",
+      "Turns repetitive IT work into reliable automation — and keeps access, audits, and security controls in order.",
+    bio: "Results-driven IT professional with 7+ years of experience in enterprise IT, specializing in Identity & Access Management, process automation, reporting, audit and compliance, cybersecurity, cloud technologies, and continuous process improvement.",
     responsibilities: [
-      "Identity and Access Management (IAM)",
-      "IT Operations and Technical Support",
-      "Enterprise Application Support",
-      "User Access Administration",
-      "Incident and Problem Resolution",
-      "Systems Administration",
-      "IT Service Management",
-      "Troubleshooting and Root-Cause Analysis",
-      "Process Improvement",
-      "Enterprise Technology Support",
+      "Identity & Access Management (IAM)",
+      "Process automation",
+      "Reporting",
+      "Audit & compliance",
+      "Cybersecurity",
+      "Cloud technologies (Microsoft Azure)",
+      "Continuous process improvement",
     ],
-    skills: [],
-    experience: "5+ years in enterprise technology & IAM",
+    skills: LEYAHN_SKILL_GROUPS.flatMap((group) => group.items),
+    experience: "7+ years in enterprise IT",
+    highlights: [
+      "Develop and maintain automation solutions that streamline day-to-day IT processes, reduce repetitive manual tasks, improve operational efficiency, and minimize human error.",
+      "Design and develop automation using PowerShell, Python, REST APIs, and cloud technologies such as Microsoft Azure to integrate systems, automate workflows, and improve operational processes.",
+      "Identify repetitive and time-consuming activities and transform them into automated workflows and tools, reducing manual effort and improving process consistency.",
+      "Develop scripts and tools for data processing, reporting, system administration, task automation, and operational support.",
+      "Integrate applications and services through REST APIs to automate data exchange and streamline processes across different platforms.",
+      "Utilize Microsoft Azure and other cloud-based technologies to support automation, integration, and enterprise IT operations.",
+      "Support Identity & Access Management (IAM) processes, including access administration, access-related requests, reviews, and compliance requirements.",
+      "Handle and maintain operational, management, and compliance reports, ensuring data accuracy, completeness, and timely delivery.",
+      "Support audit activities by preparing documentation, gathering evidence, validating records, and responding to audit and compliance requirements.",
+      "Participate in cybersecurity and information security activities, helping ensure that systems, access, processes, and automation solutions comply with established security policies and controls.",
+      "Perform access and process reviews to help identify security risks, compliance gaps, and potential unauthorized access.",
+      "Support security, risk, and compliance initiatives by maintaining appropriate documentation, controls, and evidence.",
+      "Troubleshoot technical and operational issues and work with stakeholders to identify root causes and implement effective solutions.",
+      "Collaborate with cross-functional teams to understand business requirements and translate them into practical technology and automation solutions.",
+      "Contribute to continuous improvement initiatives by analyzing existing processes and implementing technology-driven improvements.",
+      "Maintain technical documentation, process documentation, automation scripts, reports, and other materials required for operational, audit, and compliance purposes.",
+    ],
+    skillGroups: LEYAHN_SKILL_GROUPS,
+    focus:
+      "My experience combines enterprise IT operations, Identity & Access Management, automation, cloud technologies, cybersecurity, audit, and process improvement. I focus on identifying inefficient or repetitive processes and developing practical technology solutions that make operations faster, more reliable, secure, and scalable.",
     isPublished: true,
     isFeatured: true,
   },

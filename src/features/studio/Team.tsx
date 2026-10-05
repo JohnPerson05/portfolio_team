@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { FadeUp, Stagger } from "@/components/motion";
 import { Button, SectionHeading } from "@/components/ui";
 import { imageSource } from "@/lib/images";
@@ -161,6 +162,14 @@ export function MemberCard({
       ) : null}
 
       <MemberLinks member={member} />
+
+      <Link
+        href={`/team/${member.slug}`}
+        className="inline-flex min-h-11 items-center self-start font-mono text-[0.62rem] uppercase tracking-widest text-accent transition-colors hover:text-text"
+      >
+        Experience & skills →
+        <span className="sr-only"> for {member.name}</span>
+      </Link>
 
       {showBackground && member.skills.length > 0 ? (
         <details className="group/bg border-t border-hairline pt-space-2">

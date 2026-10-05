@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
 import { getPublishedPosts } from "@/features/blog";
 import { absoluteUrl } from "@/lib/seo";
-import { getPublishedProjects } from "@/server/public/queries";
+import { getPublishedProjects, getTeamMembers } from "@/server/public/queries";
 
-/** Sitemap of public pages — published projects and posts only. */
+/** Sitemap of public pages — published projects, posts, and team members only. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [posts, projects] = await Promise.all([
+  const [posts, projects, team] = await Promise.all([
     getPublishedPosts(),
     getPublishedProjects(),
+    getTeamMembers(),
   ]);
   const now = new Date();
   const sectionRoutes = [
@@ -44,6 +45,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: project.updatedAt ? new Date(project.updatedAt) : now,
       changeFrequency: "monthly" as const,
       priority: 0.8,
+    })),
+    ...team.map((member) => ({
+      url: absoluteUrl(`/team/${member.slug}`),
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     })),
     ...posts.map((post) => ({
       url: absoluteUrl(`/blog/${post.slug}`),

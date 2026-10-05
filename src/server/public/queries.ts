@@ -20,6 +20,7 @@ import {
   type ProjectView,
   type ServiceView,
   type TeamMemberView,
+  type TeamSkillGroup,
   type TestimonialView,
 } from "@/types";
 
@@ -218,10 +219,33 @@ export const getTeamMembers = cache(async (): Promise<TeamMemberView[]> => {
     responsibilities: row.responsibilities ?? [],
     skills: row.skills ?? [],
     experience: opt(row.experience),
+    highlights: row.highlights ?? [],
+    skillGroups: toSkillGroups(row.skillGroups),
+    focus: opt(row.focus),
     isFeatured: row.isFeatured,
     initials: initialsFor(row.name),
   }));
 });
+
+/** A published member's full profile, or `null`. */
+export const getTeamMemberBySlug = cache(
+  async (slug: string): Promise<TeamMemberView | null> =>
+    (await getTeamMembers()).find((member) => member.slug === slug) ?? null,
+);
+
+/** Reads the `skillGroups` JSON column, dropping anything malformed. */
+export function toSkillGroups(value: Prisma.JsonValue): TeamSkillGroup[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((group) => {
+    if (!group || typeof group !== "object" || Array.isArray(group)) return [];
+    const { label, items } = group as Record<string, unknown>;
+    if (typeof label !== "string" || !label.trim()) return [];
+    const names = Array.isArray(items)
+      ? items.filter((item): item is string => typeof item === "string" && item.trim() !== "")
+      : [];
+    return names.length > 0 ? [{ label, items: names }] : [];
+  });
+}
 
 export const getServices = cache(async (): Promise<ServiceView[]> => {
   const rows = await prisma.service.findMany({
