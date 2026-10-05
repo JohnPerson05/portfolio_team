@@ -49,7 +49,22 @@ describe("SEO helpers", () => {
       publishedAt: "2026-01-02T00:00:00.000Z",
     };
 
-    expect(studioJsonLd()).toMatchObject({
+    expect(
+      studioJsonLd(
+        {
+          "studio.name": "Pairwork Studio",
+          "studio.tagline": "Two people.",
+          "seo.description": "Desc",
+          "seo.ogImage": "/images/cover.png",
+          "social.linkedin": "https://linkedin.com/company/x",
+          "social.github": "",
+          "social.x": "",
+        },
+        [{ name: "John", role: "Engineer", profileImage: "/images/profile.png" }],
+      ),
+    ).toMatchObject({
+      sameAs: ["https://linkedin.com/company/x"],
+      employee: [{ "@type": "Person", name: "John", jobTitle: "Engineer" }],
       "@context": "https://schema.org",
       "@type": "ProfessionalService",
       url: "https://portfolio.example/",

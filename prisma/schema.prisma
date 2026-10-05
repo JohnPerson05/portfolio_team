@@ -1,6 +1,17 @@
-// Prisma schema for the Elite Portfolio.
-// Data store: Neon PostgreSQL. Generated client is consumed through the
-// shared singleton in `src/lib/prisma.ts` (see Requirement 17.3).
+// Prisma schema — Pairwork Studio portfolio + CMS.
+//
+// Data store: Neon PostgreSQL. The generated client is consumed through the
+// shared singleton in `src/lib/prisma.ts`.
+//
+// Conventions
+//  - Every content entity carries an explicit `displayOrder` so the CMS can
+//    persist drag-and-drop ordering.
+//  - Publishable entities use either a `status` enum (projects) or an
+//    `isPublished` flag (everything else). Public queries live in
+//    `src/server/public/*` and ALWAYS filter on these columns.
+//  - Projects and team members are soft-deleted via `deletedAt`; simpler
+//    entities are hard-deleted.
+//  - Schema changes ship as SQL migrations in `prisma/migrations`.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,27 +22,282 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* -------------------------------------------------------------------------- */
+/* Admin & audit                                                              */
+/* -------------------------------------------------------------------------- */
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  /// scrypt hash in the self-describing `scrypt$N$r$p$salt$key` format.
+  passwordHash String
+  name         String
+  role         AdminRole @default(EDITOR)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  projectsUpdated Project[]     @relation("ProjectUpdatedBy")
+  mediaUploaded   MediaAsset[]
+  activity        ActivityLog[]
+}
+
+model ActivityLog {
+  id         String     @id @default(cuid())
+  actorId    String?
+  actor      AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  /// e.g. "project.publish", "team.update", "settings.update"
+  action     String
+  entityType String
+  entityId   String?
+  /// Human-readable label captured at the time of the action.
+  summary    String
+  createdAt  DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Projects                                                                   */
+/* -------------------------------------------------------------------------- */
+
 model Project {
-  id           String   @id @default(cuid())
-  title        String
-  slug         String   @unique
-  summary      String
-  problem      String
-  solution     String
-  impact       String
-  technologies String[] // tech stack tags
+  id               String        @id @default(cuid())
+  title            String
+  slug             String        @unique
+  category         String?
+  tagline          String?
+  shortDescription String
+  description      String?
+  problem          String
+  solution         String
+  result           String
+  coverImage       String?
+  heroImage        String?
+  projectUrl       String?
+  githubUrl        String?
+  otherUrl         String?
+  otherUrlLabel    String?
+  clientName       String?
+  year             Int?
+  status           ProjectStatus @default(DRAFT)
+  featured         Boolean       @default(false)
+  displayOrder     Int           @default(0)
+  seoTitle         String?
+  seoDescription   String?
+  ogImage          String?
+  publishedAt      DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  updatedById      String?
+  updatedBy        AdminUser?    @relation("ProjectUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  media        ProjectMedia[]
+  technologies ProjectTechnology[]
+  testimonials Testimonial[]
+  clicks       AnalyticsEvent[]
+
+  @@index([status, deletedAt, displayOrder])
+  @@index([featured, displayOrder])
+}
+
+model ProjectMedia {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaType    MediaType @default(IMAGE)
+  url          String
   thumbnailUrl String?
-  githubUrl    String?
-  liveUrl      String?
-  featured     Boolean  @default(false)
-  order        Int      @default(0) // featured ordering
+  title        String?
+  caption      String?
+  altText      String?
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@index([projectId, displayOrder])
+}
+
+model Technology {
+  id           String  @id @default(cuid())
+  name         String  @unique
+  slug         String  @unique
+  icon         String?
+  category     String?
+  displayOrder Int     @default(0)
+  isActive     Boolean @default(true)
+
+  projects ProjectTechnology[]
+
+  @@index([isActive, displayOrder])
+}
+
+model ProjectTechnology {
+  projectId    String
+  technologyId String
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  technology   Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, technologyId])
+  @@index([technologyId])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Studio content                                                             */
+/* -------------------------------------------------------------------------- */
+
+model TeamMember {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  role         String
+  shortBio     String?
+  bio          String?
+  profileImage String?
+  location     String?
+  email        String?
+  website      String?
+  linkedin     String?
+  github       String?
+  /// What this person takes care of, in plain business language.
+  responsibilities String[] @default([])
+  /// Professional background / skills shown as quiet tags.
+  skills       String[]  @default([])
+  /// Short experience headline, e.g. "~6 years building web products".
+  experience   String?
+  displayOrder Int       @default(0)
+  isFeatured   Boolean   @default(false)
+  isPublished  Boolean   @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isPublished, deletedAt, displayOrder])
+}
+
+model Service {
+  id               String   @id @default(cuid())
+  title            String
+  slug             String   @unique
+  /// The problem as a client would describe it.
+  shortDescription String
+  /// What the studio does about it.
+  description      String?
+  icon             String?
+  image            String?
+  /// Optional "Led by …" label.
+  leadLabel        String?
+  displayOrder     Int      @default(0)
+  isFeatured       Boolean  @default(false)
+  isPublished      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+}
+
+model ProcessStep {
+  id           String   @id @default(cuid())
+  stepNumber   Int
+  /// Short label, e.g. "Discover".
+  title        String
+  /// Optional longer headline shown with the step.
+  headline     String?
+  description  String
+  /// Image URL or a short visual keyword.
+  visual       String?
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  clicks AnalyticsEvent[]
-
-  @@index([featured, order])
+  @@index([isPublished, displayOrder])
 }
+
+model Testimonial {
+  id           String    @id @default(cuid())
+  name         String
+  role         String
+  company      String?
+  avatar       String?
+  logoUrl      String?
+  quote        String
+  projectId    String?
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  displayOrder Int       @default(0)
+  isFeatured   Boolean   @default(false)
+  isPublished  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@index([projectId])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Site configuration                                                         */
+/* -------------------------------------------------------------------------- */
+
+/// Key/value settings. Known keys, their types, and defaults are declared in
+/// `src/server/settings/registry.ts`; unknown keys are ignored by the app.
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  type      String
+  updatedAt DateTime @updatedAt
+}
+
+/// Homepage sections the CMS can enable/disable, reorder, and retitle.
+/// `key` maps to a renderer in `src/features/home/sections.tsx`.
+model HomepageSection {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  label        String
+  eyebrow      String?
+  title        String?
+  description  String?
+  isEnabled    Boolean  @default(true)
+  displayOrder Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@index([displayOrder])
+}
+
+model NavigationItem {
+  id           String          @id @default(cuid())
+  label        String
+  href         String
+  location     NavLocation     @default(HEADER)
+  displayOrder Int             @default(0)
+  isVisible    Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([location, displayOrder])
+}
+
+model MediaAsset {
+  id           String     @id @default(cuid())
+  url          String     @unique
+  pathname     String
+  filename     String
+  contentType  String
+  size         Int
+  width        Int?
+  height       Int?
+  uploadedById String?
+  uploadedBy   AdminUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+
+  @@index([createdAt])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pre-existing content (blog, background pages, inbox, analytics)            */
+/* -------------------------------------------------------------------------- */
 
 model Post {
   id          String     @id @default(cuid())
@@ -69,27 +335,15 @@ model Experience {
   order        Int       @default(0)
 }
 
-model Testimonial {
-  id        String   @id @default(cuid())
-  quote     String
-  author    String
-  role      String
-  company   String?
-  avatarUrl String?
-  logoUrl   String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-}
-
 model ContactSubmission {
-  id              String    @id @default(cuid())
-  name            String
-  email           String
-  company         String?
-  message         String
-  attachmentUrls  String[]  @default([])
-  readAt          DateTime?
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(cuid())
+  name           String
+  email          String
+  company        String?
+  message        String
+  attachmentUrls String[]  @default([])
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([createdAt])
 }
@@ -103,6 +357,33 @@ model AnalyticsEvent {
   createdAt DateTime  @default(now())
 
   @@index([type, createdAt])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Enums                                                                      */
+/* -------------------------------------------------------------------------- */
+
+enum AdminRole {
+  SUPER_ADMIN
+  EDITOR
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  GIF
+  EMBED
+}
+
+enum NavLocation {
+  HEADER
+  FOOTER
 }
 
 enum PostStatus {

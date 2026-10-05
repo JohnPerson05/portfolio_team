@@ -21,7 +21,14 @@ function makePayload(
   overrides: Partial<SessionPayload> = {},
 ): SessionPayload {
   const iat = 1_700_000_000;
-  return { sub: "owner@example.com", iat, exp: iat + 3600, ...overrides };
+  return {
+    sub: "owner@example.com",
+    uid: "admin-1",
+    role: "SUPER_ADMIN",
+    iat,
+    exp: iat + 3600,
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -30,6 +37,14 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.AUTH_SECRET;
+});
+
+describe("payload shape", () => {
+  it("rejects tokens issued before admin ids existed (no uid/role)", async () => {
+    const legacy = { sub: "owner@example.com", iat: 1_700_000_000, exp: 1_700_003_600 };
+    const token = await createSessionToken(legacy as unknown as SessionPayload);
+    expect(await verifySessionToken(token, { now: legacy.iat + 1 })).toBeNull();
+  });
 });
 
 describe("createSessionToken / verifySessionToken — round-trip (Property 8)", () => {

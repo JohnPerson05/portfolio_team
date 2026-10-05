@@ -36,3 +36,6 @@ next-env.d.ts
 # vercel
 .vercel
 .env*
+
+# local CMS uploads (dev only; production uses Vercel Blob)
+/public/uploads/

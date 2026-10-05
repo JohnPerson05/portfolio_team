@@ -13,7 +13,6 @@ test("homepage renders the complete studio story without horizontal overflow", a
     "process",
     "work",
     "why",
-    "testimonials",
     "contact",
   ]) {
     await expect(page.locator(`section#${id}`)).toBeAttached();
@@ -25,6 +24,19 @@ test("homepage renders the complete studio story without horizontal overflow", a
       document.documentElement.clientWidth,
   );
   expect(overflows).toBe(false);
+});
+
+test("work archive and case studies are database-driven", async ({ page, request }) => {
+  await page.goto("/work");
+  const firstCase = page.locator("a[href^='/work/']").first();
+  const href = await firstCase.getAttribute("href");
+  expect(href).toBeTruthy();
+  await page.goto(href!);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("What got better")).toBeVisible();
+
+  expect((await request.get("/work/this-project-does-not-exist")).status()).toBe(404);
+  expect((await request.get("/projects", { maxRedirects: 0 })).status()).toBe(308);
 });
 
 test("public pages have no automatically detectable accessibility violations", async ({

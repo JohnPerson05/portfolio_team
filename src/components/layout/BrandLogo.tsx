@@ -8,6 +8,8 @@ export interface BrandLogoProps {
   className?: string;
   /** Optional priority for above-the-fold placements (navbar). */
   priority?: boolean;
+  /** Accessible name; defaults to the default studio name. */
+  alt?: string;
 }
 
 /**
@@ -17,11 +19,12 @@ export function BrandLogo({
   size = 40,
   className,
   priority = false,
+  alt = BRAND_NAME,
 }: BrandLogoProps) {
   return (
     <Image
       src={BRAND_LOGO_SRC}
-      alt={BRAND_NAME}
+      alt={alt}
       width={size}
       height={size}
       priority={priority}

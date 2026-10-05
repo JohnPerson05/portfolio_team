@@ -10,6 +10,12 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     css: true,
+    // Unit tests must never reach a real database. Prisma would otherwise load
+    // DATABASE_URL from `.env`; point it at an unroutable address instead.
+    env: {
+      DATABASE_URL: "postgresql://unit-tests:unit-tests@127.0.0.1:9/unit-tests",
+      DATABASE_URL_UNPOOLED: "postgresql://unit-tests:unit-tests@127.0.0.1:9/unit-tests",
+    },
   },
   resolve: {
     alias: {

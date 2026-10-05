@@ -5,7 +5,7 @@
  * (`crypto.subtle`), `TextEncoder`/`TextDecoder`, and `btoa`/`atob` — all of
  * which are available in BOTH the Node.js and the Edge (middleware) runtimes.
  * It deliberately avoids `node:crypto` and `next/headers` so that
- * `middleware.ts` can import it without pulling Node-only code into the Edge
+ * `src/proxy.ts` can import it without pulling Node-only code into the Edge
  * bundle.
  *
  * Token format: `${payloadB64url}.${signatureB64url}` where
@@ -27,13 +27,20 @@ export const SESSION_COOKIE_NAME = "portfolio_session";
  */
 export const ADMIN_LOGIN_PATH = "/admin/login";
 
-/** Default session lifetime: 7 days (in seconds). */
-export const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+/** Session lifetime without "remember me": 12 hours (in seconds). */
+export const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 12;
+
+/** Session lifetime with "remember me": 30 days (in seconds). */
+export const REMEMBER_ME_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 /** Decoded session payload carried inside the signed token. */
 export interface SessionPayload {
-  /** Subject — the owner's email. */
+  /** Subject — the admin's email. */
   sub: string;
+  /** AdminUser id. Re-checked against the database on every server request. */
+  uid: string;
+  /** Role at sign-in time (informational; authorization re-reads the DB). */
+  role: "SUPER_ADMIN" | "EDITOR";
   /** Issued-at, epoch seconds. */
   iat: number;
   /** Expiry, epoch seconds. */
@@ -116,6 +123,8 @@ function isSessionPayload(value: unknown): value is SessionPayload {
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.sub === "string" &&
+    typeof candidate.uid === "string" &&
+    (candidate.role === "SUPER_ADMIN" || candidate.role === "EDITOR") &&
     typeof candidate.iat === "number" &&
     typeof candidate.exp === "number"
   );

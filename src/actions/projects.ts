@@ -1,258 +1,394 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
-import type { z } from "zod";
+import type { Prisma, ProjectStatus } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
-import { projectSchema } from "@/lib/validation";
-import { MAX_FEATURED, MIN_FEATURED } from "@/features/projects/config";
-import { encodeProjectImages } from "@/features/projects/media";
+import { requireAdmin } from "@/lib/auth";
+import {
+  idSchema,
+  projectSchema,
+  publishBlockers,
+  reorderSchema,
+  type ProjectData,
+  type ProjectInput,
+} from "@/lib/validation";
+import { logActivity } from "@/server/admin/activity";
+import {
+  nullify,
+  persistenceFailure,
+  revalidateSite,
+  validationFailure,
+} from "@/server/admin/mutations";
 import type { ActionResult } from "@/types";
 
 /**
- * Admin project-management Server Actions (Requirement 10; Properties 1 & 7).
- *
- * Every mutating action here follows the "Admin mutation (guarded)" sequence
- * from design.md:
- *   1. {@link requireSession} re-check (defense-in-depth, Property 7 / Req 9.5).
- *      Middleware already guards `/admin` routes at the edge, but each action
- *      independently verifies the session so an unauthenticated caller can never
- *      reach a mutation. `requireSession` redirects (throws `NEXT_REDIRECT`) when
- *      no session is present, so the function does not return — and crucially,
- *      NO Prisma write runs.
- *   2. Zod validation via {@link projectSchema} (Req 10.4). On failure the action
- *      returns structured `fieldErrors` and writes nothing (Property 4 at the
- *      admin layer).
- *   3. Prisma mutation.
- *   4. {@link revalidatePath} for the public homepage (`/`) and the admin
- *      projects routes so changes reflect publicly without a redeploy
- *      (Req 10.1 / 10.2).
- *
- * The featured set/ordering is controlled by {@link reorderFeatured}, which keeps
- * the public "featured" count within {@link MIN_FEATURED}–{@link MAX_FEATURED}
- * (Req 10.5 / Property 1) and assigns a contiguous ascending `order`.
+ * Project CMS actions. Each one: requireAdmin → validate → mutate → log →
+ * revalidate. See `src/server/admin/mutations.ts`.
  */
 
-/** Public homepage path to revalidate after a project mutation (Req 10.1/10.2). */
-const PUBLIC_HOME_PATH = "/";
-/** Public project archive and detail routes. */
-const PUBLIC_PROJECTS_PATH = "/projects";
-const PUBLIC_PROJECT_DETAIL_PATTERN = "/projects/[slug]";
-/** Admin projects list path to revalidate after a mutation. */
-const ADMIN_PROJECTS_PATH = "/admin/projects";
+export type SaveIntent = "draft" | "publish" | "save";
 
-/**
- * Raw create/update input as held by the admin form (the Zod *input* type, so
- * fields with schema defaults — `featured`, `order` — are optional here).
- */
-export type ProjectMutationInput = z.input<typeof projectSchema>;
-
-/** Generic failure message for unexpected persistence errors. */
-const GENERIC_SAVE_ERROR =
-  "Something went wrong saving the project. Please try again.";
-
-function toProjectData(parsed: z.infer<typeof projectSchema>) {
-  const { imageUrls, thumbnailUrl, ...data } = parsed;
-  const persistedImages =
-    imageUrls.length > 0 ? imageUrls : thumbnailUrl ? [thumbnailUrl] : [];
-
-  return {
-    ...data,
-    thumbnailUrl: encodeProjectImages(persistedImages),
-  };
+export interface SavedProject {
+  id: string;
+  status: ProjectStatus;
+  slug: string;
+  updatedAt: string;
 }
 
-/** Revalidate the public homepage and the admin projects routes. */
-function revalidateProjectSurfaces(): void {
-  revalidatePath(PUBLIC_HOME_PATH);
-  revalidatePath(PUBLIC_PROJECTS_PATH);
-  revalidatePath(PUBLIC_PROJECT_DETAIL_PATTERN, "page");
-  revalidatePath(ADMIN_PROJECTS_PATH);
+function projectColumns(data: ProjectData) {
+  const { technologyIds: _t, media: _m, ...columns } = data;
+  return nullify(columns);
 }
 
-/**
- * Translate a Prisma unique-constraint violation on `slug` into an inline field
- * error, so the owner sees "slug already exists" rather than a generic failure.
- * Returns `null` for any other error so the caller can fall back to a generic
- * form error.
- */
-function slugConflictResult(error: unknown): ActionResult | null {
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  ) {
-    return {
-      success: false,
-      fieldErrors: { slug: ["A project with this slug already exists"] },
-    };
-  }
-  return null;
-}
-
-/**
- * Create a project (Requirement 10.1, 10.4). Guarded by {@link requireSession}
- * (Property 7) and validated by {@link projectSchema} (Req 10.4) before any
- * write. On success the public homepage and admin projects routes are
- * revalidated so the new project reflects publicly (Req 10.1).
- */
-export async function createProject(
-  input: ProjectMutationInput,
-): Promise<ActionResult<{ id: string }>> {
-  // 1. Auth re-check FIRST — redirects (throws) when unauthenticated; no write.
-  await requireSession();
-
-  // 2. Validate (Req 10.4). On failure return field errors; persist nothing.
-  const parsed = projectSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
-  }
-
-  // 3. Persist.
-  try {
-    const created = await prisma.project.create({
-      data: toProjectData(parsed.data),
+async function writeRelations(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  data: ProjectData,
+): Promise<void> {
+  // Technologies: replace the set.
+  await tx.projectTechnology.deleteMany({ where: { projectId } });
+  const techIds = [...new Set(data.technologyIds)];
+  if (techIds.length > 0) {
+    const existing = await tx.technology.findMany({
+      where: { id: { in: techIds } },
+      select: { id: true },
     });
-    // 4. Reflect on the public site + admin list (Req 10.1).
-    revalidateProjectSurfaces();
-    return { success: true, data: { id: created.id } };
-  } catch (error) {
-    const conflict = slugConflictResult(error);
-    if (conflict) return conflict;
-    console.error("Failed to create project", error);
-    return { success: false, formError: GENERIC_SAVE_ERROR };
+    await tx.projectTechnology.createMany({
+      data: existing.map(({ id }) => ({ projectId, technologyId: id })),
+    });
+  }
+
+  // Media: keep rows whose id is still present, delete the rest, then write
+  // every item with its new position.
+  const keepIds = data.media.map((m) => m.id).filter((id): id is string => !!id);
+  await tx.projectMedia.deleteMany({
+    where: { projectId, id: { notIn: keepIds } },
+  });
+  for (const [index, item] of data.media.entries()) {
+    const fields = {
+      mediaType: item.mediaType,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl ?? null,
+      title: item.title ?? null,
+      caption: item.caption ?? null,
+      altText: item.altText ?? null,
+      displayOrder: index,
+    };
+    const updated = item.id
+      ? await tx.projectMedia.updateMany({
+          where: { id: item.id, projectId },
+          data: fields,
+        })
+      : { count: 0 };
+    if (updated.count === 0) {
+      await tx.projectMedia.create({ data: { ...fields, projectId } });
+    }
   }
 }
 
 /**
- * Update an existing project (Requirement 10.2, 10.4). Same guard + validation
- * gates as {@link createProject}; revalidates public + admin surfaces on success
- * so edits reflect publicly (Req 10.2).
+ * Create or update a project.
+ *
+ *  - `draft`   → status DRAFT (incomplete content allowed). Used by autosave.
+ *  - `publish` → status PUBLISHED; requires the full story.
+ *  - `save`    → keep the current status (editing a live project). If the
+ *                project is live, the full story is still required.
  */
-export async function updateProject(
+export async function saveProject(
+  id: string | null,
+  input: ProjectInput,
+  intent: SaveIntent = "save",
+): Promise<ActionResult<SavedProject>> {
+  const admin = await requireAdmin();
+
+  if (id !== null && !idSchema.safeParse(id).success) {
+    return { success: false, formError: "Missing project id." };
+  }
+
+  const parsed = projectSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error);
+  const data = parsed.data;
+
+  try {
+    const current = id
+      ? await prisma.project.findFirst({
+          where: { id, deletedAt: null },
+          select: { status: true, publishedAt: true },
+        })
+      : null;
+    if (id && !current) {
+      return { success: false, formError: "This project no longer exists." };
+    }
+
+    const status: ProjectStatus =
+      intent === "publish"
+        ? "PUBLISHED"
+        : intent === "draft"
+          ? "DRAFT"
+          : (current?.status ?? "DRAFT");
+
+    if (status === "PUBLISHED") {
+      const blockers = publishBlockers(data);
+      if (blockers) {
+        return {
+          success: false,
+          fieldErrors: blockers,
+          formError: "Finish the story before publishing.",
+        };
+      }
+    }
+
+    const publishedAt =
+      status === "PUBLISHED" ? (current?.publishedAt ?? new Date()) : current?.publishedAt ?? null;
+
+    const saved = await prisma.$transaction(async (tx) => {
+      const row = id
+        ? await tx.project.update({
+            where: { id },
+            data: { ...projectColumns(data), status, publishedAt, updatedById: admin.id },
+          })
+        : await tx.project.create({
+            data: { ...projectColumns(data), status, publishedAt, updatedById: admin.id },
+          });
+      await writeRelations(tx, row.id, data);
+      return row;
+    });
+
+    const verb = !id ? "created" : intent === "publish" && current?.status !== "PUBLISHED" ? "published" : "updated";
+    await logActivity(admin, {
+      action: `project.${verb === "created" ? "create" : verb === "published" ? "publish" : "update"}`,
+      entityType: "project",
+      entityId: saved.id,
+      summary: `${verb[0]?.toUpperCase()}${verb.slice(1)} project “${saved.title}”`,
+    });
+    revalidateSite();
+
+    return {
+      success: true,
+      data: {
+        id: saved.id,
+        status: saved.status,
+        slug: saved.slug,
+        updatedAt: saved.updatedAt.toISOString(),
+      },
+    };
+  } catch (error) {
+    return persistenceFailure(error, "project");
+  }
+}
+
+/** Publish, unpublish (back to draft), or archive a project. */
+export async function setProjectStatus(
   id: string,
-  input: ProjectMutationInput,
-): Promise<ActionResult<{ id: string }>> {
-  await requireSession();
-
-  if (typeof id !== "string" || id.trim() === "") {
-    return { success: false, formError: "Missing project id." };
-  }
-
-  const parsed = projectSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
+  status: ProjectStatus,
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
+  if (!["DRAFT", "PUBLISHED", "ARCHIVED"].includes(status)) {
+    return { success: false, formError: "Unknown status." };
   }
 
   try {
-    const updated = await prisma.project.update({
+    const project = await prisma.project.findFirst({ where: { id, deletedAt: null } });
+    if (!project) return { success: false, formError: "This project no longer exists." };
+
+    if (status === "PUBLISHED") {
+      const blockers = publishBlockers(project);
+      if (blockers) {
+        return {
+          success: false,
+          formError: `Can't publish yet — missing: ${Object.keys(blockers).join(", ")}. Open the editor to finish it.`,
+        };
+      }
+    }
+
+    await prisma.project.update({
       where: { id },
-      data: toProjectData(parsed.data),
+      data: {
+        status,
+        updatedById: admin.id,
+        ...(status === "PUBLISHED" && !project.publishedAt ? { publishedAt: new Date() } : {}),
+      },
     });
-    revalidateProjectSurfaces();
-    return { success: true, data: { id: updated.id } };
+    const verb = status === "PUBLISHED" ? "Published" : status === "ARCHIVED" ? "Archived" : "Unpublished";
+    await logActivity(admin, {
+      action: `project.${status.toLowerCase()}`,
+      entityType: "project",
+      entityId: id,
+      summary: `${verb} project “${project.title}”`,
+    });
+    revalidateSite();
+    return { success: true };
   } catch (error) {
-    const conflict = slugConflictResult(error);
-    if (conflict) return conflict;
-    console.error("Failed to update project", error);
-    return { success: false, formError: GENERIC_SAVE_ERROR };
+    return persistenceFailure(error, "project");
   }
 }
 
-/**
- * Delete a project (Requirement 10.3). The confirmation prompt is a UI concern
- * (the admin delete dialog); this action performs the guarded removal and
- * revalidates so the deletion reflects publicly. Guarded by
- * {@link requireSession} (Property 7) before any write.
- */
-export async function deleteProject(id: string): Promise<ActionResult> {
-  await requireSession();
-
-  if (typeof id !== "string" || id.trim() === "") {
-    return { success: false, formError: "Missing project id." };
+export async function setProjectFeatured(id: string, featured: boolean): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
+  try {
+    const project = await prisma.project.update({
+      where: { id },
+      data: { featured: Boolean(featured), updatedById: admin.id },
+    });
+    await logActivity(admin, {
+      action: featured ? "project.feature" : "project.unfeature",
+      entityType: "project",
+      entityId: id,
+      summary: `${featured ? "Featured" : "Unfeatured"} project “${project.title}”`,
+    });
+    revalidateSite();
+    return { success: true };
+  } catch (error) {
+    return persistenceFailure(error, "project");
   }
+}
+
+/** Copy a project (content, media, technologies) into a new draft. */
+export async function duplicateProject(id: string): Promise<ActionResult<{ id: string }>> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
 
   try {
+    const source = await prisma.project.findFirst({
+      where: { id, deletedAt: null },
+      include: { media: true, technologies: true },
+    });
+    if (!source) return { success: false, formError: "This project no longer exists." };
+
+    let slug = `${source.slug}-copy`.slice(0, 110);
+    for (let n = 2; await prisma.project.findUnique({ where: { slug } }); n += 1) {
+      slug = `${source.slug}-copy-${n}`.slice(0, 120);
+    }
+
+    const {
+      id: _id,
+      createdAt: _c,
+      updatedAt: _u,
+      publishedAt: _p,
+      deletedAt: _d,
+      media,
+      technologies,
+      ...rest
+    } = source;
+
+    const copy = await prisma.project.create({
+      data: {
+        ...rest,
+        title: `${source.title} (copy)`.slice(0, 140),
+        slug,
+        status: "DRAFT",
+        featured: false,
+        updatedById: admin.id,
+        media: {
+          create: media.map(({ id: _mid, projectId: _pid, createdAt: _mc, ...m }) => m),
+        },
+        technologies: {
+          create: technologies.map(({ technologyId }) => ({ technologyId })),
+        },
+      },
+    });
+    await logActivity(admin, {
+      action: "project.duplicate",
+      entityType: "project",
+      entityId: copy.id,
+      summary: `Duplicated “${source.title}”`,
+    });
+    revalidateSite();
+    return { success: true, data: { id: copy.id } };
+  } catch (error) {
+    return persistenceFailure(error, "project");
+  }
+}
+
+/** Move to trash (soft delete). Recoverable via {@link restoreProject}. */
+export async function trashProject(id: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
+  try {
+    const project = await prisma.project.update({
+      where: { id },
+      data: { deletedAt: new Date(), featured: false, updatedById: admin.id },
+    });
+    await logActivity(admin, {
+      action: "project.trash",
+      entityType: "project",
+      entityId: id,
+      summary: `Moved project “${project.title}” to trash`,
+    });
+    revalidateSite();
+    return { success: true };
+  } catch (error) {
+    return persistenceFailure(error, "project");
+  }
+}
+
+export async function restoreProject(id: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
+  try {
+    // Restored projects come back as drafts so nothing reappears publicly by surprise.
+    const project = await prisma.project.update({
+      where: { id },
+      data: { deletedAt: null, status: "DRAFT", updatedById: admin.id },
+    });
+    await logActivity(admin, {
+      action: "project.restore",
+      entityType: "project",
+      entityId: id,
+      summary: `Restored project “${project.title}” as a draft`,
+    });
+    revalidateSite();
+    return { success: true };
+  } catch (error) {
+    return persistenceFailure(error, "project");
+  }
+}
+
+/** Permanently delete a project that is already in the trash. */
+export async function deleteProjectPermanently(id: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { success: false, formError: "Missing project id." };
+  try {
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) return { success: true };
+    if (!project.deletedAt) {
+      return { success: false, formError: "Move the project to trash before deleting it permanently." };
+    }
     await prisma.project.delete({ where: { id } });
-    revalidateProjectSurfaces();
+    await logActivity(admin, {
+      action: "project.delete",
+      entityType: "project",
+      entityId: id,
+      summary: `Permanently deleted project “${project.title}”`,
+    });
+    revalidateSite();
     return { success: true };
   } catch (error) {
-    console.error("Failed to delete project", error);
-    return {
-      success: false,
-      formError: "Something went wrong deleting the project. Please try again.",
-    };
+    return persistenceFailure(error, "project");
   }
 }
 
-/**
- * Set the featured project set and its display order (Requirement 10.5;
- * Property 1).
- *
- * `ids` is the ordered list of project ids to feature on the public homepage.
- * The action:
- *   - guards via {@link requireSession} (Property 7),
- *   - rejects malformed/duplicate selections,
- *   - enforces the public featured bound of {@link MIN_FEATURED}–
- *     {@link MAX_FEATURED} (Req 10.5 / Property 1) so the homepage always has a
- *     valid 3–6 set to render,
- *   - then, in a single transaction, clears `featured` on every project NOT in
- *     the list and sets `featured = true` with a contiguous ascending `order`
- *     (matching the array index) on each selected project.
- *
- * Because `order` mirrors the array position, the public query (ordered by
- * `order` ascending) renders the projects in exactly the chosen sequence.
- */
-export async function reorderFeatured(ids: string[]): Promise<ActionResult> {
-  await requireSession();
-
-  // Structural validation: a non-empty array of non-empty string ids.
-  if (
-    !Array.isArray(ids) ||
-    ids.some((id) => typeof id !== "string" || id.trim() === "")
-  ) {
-    return { success: false, formError: "Invalid project selection." };
-  }
-
-  // No duplicates — a project cannot appear twice in the featured order.
-  if (new Set(ids).size !== ids.length) {
-    return {
-      success: false,
-      formError: "A project cannot be featured more than once.",
-    };
-  }
-
-  // Enforce the public featured bound (Req 10.5 / Property 1).
-  if (ids.length < MIN_FEATURED || ids.length > MAX_FEATURED) {
-    return {
-      success: false,
-      formError: `Featured projects must be between ${MIN_FEATURED} and ${MAX_FEATURED}.`,
-    };
-  }
-
+/** Persist a drag-and-drop order. `ids` is the full list in its new order. */
+export async function reorderProjects(ids: string[]): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const parsed = reorderSchema.safeParse(ids);
+  if (!parsed.success) return { success: false, formError: "Invalid order." };
   try {
-    // Single transaction: unfeature the rest, then feature + order the selected.
-    await prisma.$transaction([
-      prisma.project.updateMany({
-        where: { id: { notIn: ids } },
-        data: { featured: false },
-      }),
-      ...ids.map((id, index) =>
-        prisma.project.update({
-          where: { id },
-          data: { featured: true, order: index },
-        }),
+    await prisma.$transaction(
+      parsed.data.map((id, index) =>
+        prisma.project.update({ where: { id }, data: { displayOrder: index } }),
       ),
-    ]);
-    revalidateProjectSurfaces();
+    );
+    await logActivity(admin, {
+      action: "project.reorder",
+      entityType: "project",
+      summary: "Reordered projects",
+    });
+    revalidateSite();
     return { success: true };
   } catch (error) {
-    console.error("Failed to reorder featured projects", error);
-    return {
-      success: false,
-      formError:
-        "Something went wrong updating featured projects. Please try again.",
-    };
+    return persistenceFailure(error, "project");
   }
 }

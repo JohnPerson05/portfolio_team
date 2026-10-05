@@ -7,9 +7,10 @@ import { ProjectLink } from "./ProjectLink";
 import { ProjectVisual } from "./ProjectVisual";
 
 export interface ProjectCardProps {
-  /** The project to render. */
   project: ProjectView;
   className?: string;
+  /** Load the cover eagerly (first card above the fold). */
+  priority?: boolean;
 }
 
 /** Minimal GitHub mark used for the source-code link (decorative). */
@@ -21,7 +22,7 @@ function GitHubIcon() {
   );
 }
 
-/** Minimal "external link" glyph used for the live demo link (decorative). */
+/** Minimal "external link" glyph used for the live link (decorative). */
 function ExternalLinkIcon() {
   return (
     <svg
@@ -41,27 +42,15 @@ function ExternalLinkIcon() {
 }
 
 /**
- * `ProjectCard` — a single featured-project card (Requirement 3.2).
- *
- * Renders the thumbnail, title/summary, a business-first Challenge → What was
- * built → Result story, a deliberately quiet technology line, and — conditionally — the
- * GitHub and Live Demo action links.
- *
- * Link integrity (Correctness Property 2 / Requirement 3.3): each action link
- * is rendered if and only if its URL is non-empty (via {@link hasLink}); absent
- * URLs produce no element at all rather than an empty/broken link. The links
- * are interactive {@link ProjectLink} islands that record a `PROJECT_CLICK`
- * event and open in a new tab (Requirement 3.5).
- *
- * Premium hover (Requirement 3.4): a subtle lift + accent border via the shared
- * {@link Card} `hover="lift"` treatment, using design tokens — no flashy motion.
- *
- * Server-safe and presentational; only the per-link {@link ProjectLink} islands
- * hydrate.
+ * `ProjectCard` — one project told as a business story: the challenge, what
+ * was built, and the result, with a deliberately quiet technology line.
+ * Action links render only when their URL exists.
  */
-export function ProjectCard({ project, className }: ProjectCardProps) {
+export function ProjectCard({ project, className, priority = false }: ProjectCardProps) {
+  const href = `/work/${project.slug}`;
   const showGithub = hasLink(project.githubUrl);
-  const showLive = hasLink(project.liveUrl);
+  const showLive = hasLink(project.projectUrl);
+  const meta = [project.clientName, project.year?.toString()].filter(Boolean);
 
   return (
     <Card
@@ -72,26 +61,30 @@ export function ProjectCard({ project, className }: ProjectCardProps) {
     >
       <ProjectVisual
         title={project.title}
-        thumbnailUrl={project.thumbnailUrl}
-        technologies={project.technologies}
-        href={`/projects/${project.slug}`}
+        thumbnailUrl={project.coverImage}
+        technologies={project.technologies.map((t) => t.name)}
+        href={href}
+        label={project.category ?? "Case study"}
+        priority={priority}
       />
 
       <div className="flex flex-1 flex-col gap-space-3 p-space-3 sm:p-space-4">
         <div className="flex flex-col gap-space-1">
+          {meta.length > 0 ? (
+            <p className="font-mono text-[0.62rem] uppercase tracking-widest text-muted">
+              {meta.join(" · ")}
+            </p>
+          ) : null}
           <h3
             id={`project-${project.id}-title`}
             className="text-balance font-display text-h3 font-semibold tracking-tight text-text"
           >
-            <Link
-              href={`/projects/${project.slug}`}
-              className="transition-colors hover:text-accent"
-            >
+            <Link href={href} className="transition-colors hover:text-accent">
               {project.title}
             </Link>
           </h3>
           <p className="text-pretty font-sans text-body text-muted">
-            {project.summary}
+            {project.tagline ?? project.shortDescription}
           </p>
         </div>
 
@@ -104,7 +97,7 @@ export function ProjectCard({ project, className }: ProjectCardProps) {
               <dt className="font-mono text-[0.62rem] uppercase tracking-widest text-muted">
                 {step.label}
               </dt>
-              <dd className="mt-0.5 text-pretty text-caption leading-relaxed text-text/80">
+              <dd className="mt-0.5 line-clamp-3 text-pretty text-caption leading-relaxed text-text/80">
                 {step.value}
               </dd>
             </div>
@@ -113,40 +106,36 @@ export function ProjectCard({ project, className }: ProjectCardProps) {
             <dt className="font-mono text-[0.62rem] font-medium uppercase tracking-widest text-accent">
               The result
             </dt>
-            <dd className="mt-1 text-pretty font-sans text-body leading-relaxed text-text">
-              {project.impact}
+            <dd className="mt-1 line-clamp-4 text-pretty font-sans text-body leading-relaxed text-text">
+              {project.result}
             </dd>
           </div>
         </dl>
 
-        <div className="mt-auto flex flex-wrap items-center gap-space-4">
+        <div className="mt-auto flex flex-wrap items-center gap-x-space-4">
           <Link
-            href={`/projects/${project.slug}`}
+            href={href}
             className="inline-flex min-h-11 items-center font-mono text-[0.65rem] font-medium uppercase tracking-widest text-accent transition-colors hover:text-text"
           >
             Read the full story →
           </Link>
-          {showGithub || showLive ? (
-            <>
-              {showGithub ? (
-                <ProjectLink
-                  href={project.githubUrl as string}
-                  projectId={project.id}
-                  icon={<GitHubIcon />}
-                >
-                  GitHub
-                </ProjectLink>
-              ) : null}
-              {showLive ? (
-                <ProjectLink
-                  href={project.liveUrl as string}
-                  projectId={project.id}
-                  icon={<ExternalLinkIcon />}
-                >
-                  Live Demo
-                </ProjectLink>
-              ) : null}
-            </>
+          {showGithub ? (
+            <ProjectLink
+              href={project.githubUrl as string}
+              projectId={project.id}
+              icon={<GitHubIcon />}
+            >
+              GitHub
+            </ProjectLink>
+          ) : null}
+          {showLive ? (
+            <ProjectLink
+              href={project.projectUrl as string}
+              projectId={project.id}
+              icon={<ExternalLinkIcon />}
+            >
+              Live site
+            </ProjectLink>
           ) : null}
         </div>
 
@@ -158,7 +147,7 @@ export function ProjectCard({ project, className }: ProjectCardProps) {
               className="flex flex-wrap gap-x-space-2 gap-y-1 font-mono text-[0.6rem] uppercase tracking-wider text-muted opacity-70"
             >
               {project.technologies.map((tech) => (
-                <li key={tech}>{tech}</li>
+                <li key={tech.slug}>{tech.name}</li>
               ))}
             </ul>
           </div>

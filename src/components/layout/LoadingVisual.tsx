@@ -1,4 +1,6 @@
-import { STUDIO } from "@/features/studio/config";
+"use client";
+
+import { useSiteChrome } from "./SiteChrome";
 import { cn } from "@/lib/utils";
 
 export interface LoadingVisualProps {
@@ -10,6 +12,7 @@ export function LoadingVisual({
   overlay = false,
   className,
 }: LoadingVisualProps) {
+  const { studioName } = useSiteChrome();
   return (
     <div
       role="status"
@@ -47,7 +50,7 @@ export function LoadingVisual({
         </div>
 
         <p className="mt-space-4 font-display text-body-lg font-semibold tracking-tight text-text">
-          {STUDIO.name}
+          {studioName}
         </p>
         <div className="mt-space-2 flex items-center gap-space-2 font-mono text-[0.64rem] uppercase tracking-[0.2em] text-muted">
           <span className="status-pulse h-2 w-2 rounded-full bg-emerald-400" />

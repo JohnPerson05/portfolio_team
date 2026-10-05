@@ -1,6 +1,7 @@
 import { FadeUp, Stagger } from "@/components/motion";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import type { TeamMemberView } from "@/types";
 import { HERO_CONTENT, type HeroContent, type HeroLink } from "./config";
 import { DuoComposition } from "./DuoComposition";
 import { MagneticCta } from "./MagneticCta";
@@ -18,6 +19,9 @@ export interface HeroProps {
   secondaryCta?: HeroContent["secondaryCta"];
   availability?: string;
   links?: readonly HeroLink[];
+  outcomes?: readonly string[];
+  /** Published team members shown in the duo composition. */
+  members?: readonly TeamMemberView[];
   className?: string;
 }
 
@@ -31,6 +35,7 @@ function resolveContent(props: HeroProps): HeroContent {
     secondaryCta: props.secondaryCta ?? HERO_CONTENT.secondaryCta,
     availability: props.availability ?? HERO_CONTENT.availability,
     links: props.links ?? HERO_CONTENT.links,
+    outcomes: props.outcomes ?? HERO_CONTENT.outcomes,
   };
 }
 
@@ -150,7 +155,10 @@ export function Hero(props: HeroProps) {
         </div>
 
         <FadeUp>
-          <DuoComposition />
+          <DuoComposition
+            members={props.members ?? []}
+            outcomes={content.outcomes}
+          />
         </FadeUp>
       </Stagger>
     </section>

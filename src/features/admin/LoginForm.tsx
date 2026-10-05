@@ -1,167 +1,160 @@
 "use client";
 
-import { useId, useState, type ChangeEvent, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useId, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { Button, Field, Input, SectionHeading } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import { login } from "@/actions/auth";
-import {
-  ADMIN_DASHBOARD_HREF,
-  LOGIN_DESCRIPTION,
-  LOGIN_EMAIL_LABEL,
-  LOGIN_EYEBROW,
-  LOGIN_GENERIC_ERROR,
-  LOGIN_HEADING,
-  LOGIN_PASSWORD_LABEL,
-  LOGIN_SUBMIT_LABEL,
-  LOGIN_SUBMITTING_LABEL,
-} from "./config";
-
-/** The visible fields of the login form. */
-interface LoginValues {
-  email: string;
-  password: string;
-}
-
-const EMPTY_VALUES: LoginValues = { email: "", password: "" };
+import { AdminButton, AdminInput, Icon } from "./ui";
+import { ADMIN_DASHBOARD_HREF, LOGIN_GENERIC_ERROR } from "./config";
 
 export interface LoginFormProps {
   className?: string;
 }
 
+/** Only return to CMS paths after sign-in (no open redirects). */
+export function safeNext(next: string | null | undefined): string {
+  if (!next || !next.startsWith("/admin") || next.startsWith("//") || next.startsWith("/admin/login")) {
+    return ADMIN_DASHBOARD_HREF;
+  }
+  return next;
+}
+
 /**
- * `LoginForm` — the owner sign-in form (Requirement 9.2, 9.3).
- *
- * A client component with Email + Password fields that calls the {@link login}
- * Server Action. On success the action sets the session cookie and this form
- * navigates to the dashboard (Requirement 9.2). On failure the action returns a
- * single GENERIC `formError` — identical for unknown email and wrong password —
- * which is surfaced as a form-level alert so the UI never enables user
- * enumeration (Requirement 9.3). A failed login establishes no session
- * (Property 8), which the action guarantees.
- *
- * Accessibility (Req 15.2): wired through {@link Field} (`<label>` +
- * `aria-invalid`/`aria-describedby`); the form-level error is announced via a
- * `role="alert"` live region. `noValidate` defers validation messaging to the
- * action for consistency.
+ * CMS sign-in. Errors are always generic ("Invalid email or password.") so
+ * the form never reveals which part was wrong.
  */
 export function LoginForm({ className }: LoginFormProps) {
   const router = useRouter();
-  const headingId = useId();
-  const statusId = useId();
-
-  const [values, setValues] = useState<LoginValues>(EMPTY_VALUES);
-  const [formError, setFormError] = useState<string | undefined>(undefined);
+  const searchParams = useSearchParams();
+  const errorId = useId();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    setValues((current) => ({ ...current, [name]: value }));
-    if (formError) setFormError(undefined);
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFormError(undefined);
-
+    setError(undefined);
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
     const formData = new FormData();
-    formData.set("email", values.email);
-    formData.set("password", values.password);
+    formData.set("email", email);
+    formData.set("password", password);
+    if (remember) formData.set("remember", "on");
 
     setSubmitting(true);
     try {
       const result = await login(formData);
-
       if (result.success) {
-        // Session established (Req 9.2). Navigate to the dashboard; refresh so
-        // the now-authenticated server render is picked up.
-        router.replace(ADMIN_DASHBOARD_HREF);
+        router.replace(safeNext(searchParams?.get("next")));
         router.refresh();
         return;
       }
-
-      // Generic credentials error (Req 9.3) — no enumeration.
-      setFormError(result.formError ?? LOGIN_GENERIC_ERROR);
-      setSubmitting(false);
+      setError(result.formError ?? LOGIN_GENERIC_ERROR);
     } catch {
-      setFormError(LOGIN_GENERIC_ERROR);
-      setSubmitting(false);
+      setError(LOGIN_GENERIC_ERROR);
     }
-  };
+    setSubmitting(false);
+  }
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className={cn(
-        "mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-space-8 px-space-2 py-section sm:px-space-4",
-        className,
-      )}
-    >
-      <SectionHeading
-        id={headingId}
-        level={1}
-        eyebrow={LOGIN_EYEBROW}
-        heading={LOGIN_HEADING}
-        description={LOGIN_DESCRIPTION}
-      />
+    <form noValidate onSubmit={handleSubmit} className={className} aria-describedby={error ? errorId : undefined}>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="text-[13px] font-medium text-zinc-800">
+            Email
+          </label>
+          <AdminInput
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            autoFocus
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError(undefined);
+            }}
+            placeholder="you@studio.com"
+            className="h-10"
+            aria-invalid={error ? true : undefined}
+          />
+        </div>
 
-      <form
-        noValidate
-        aria-describedby={statusId}
-        onSubmit={handleSubmit}
-        className="flex w-full flex-col gap-space-4"
-      >
-        <Field label={LOGIN_EMAIL_LABEL} required>
-          {(control) => (
-            <Input
-              {...control}
-              name="email"
-              type="email"
-              autoComplete="username"
-              placeholder="you@example.com"
-              value={values.email}
-              onChange={handleChange}
-            />
-          )}
-        </Field>
-
-        <Field label={LOGIN_PASSWORD_LABEL} required>
-          {(control) => (
-            <Input
-              {...control}
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={values.password}
-              onChange={handleChange}
-            />
-          )}
-        </Field>
-
-        {/* Form-level error live region (Req 9.3). */}
-        <div id={statusId} className="min-h-[1.5rem]">
-          {formError ? (
-            <p
-              role="alert"
-              className="font-sans text-body font-medium text-red-400"
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="password" className="text-[13px] font-medium text-zinc-800">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowHelp((v) => !v)}
+              aria-expanded={showHelp}
+              className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline"
             >
-              {formError}
+              Forgot password?
+            </button>
+          </div>
+          <div className="relative">
+            <AdminInput
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(undefined);
+              }}
+              placeholder="••••••••••••"
+              className="h-10 pr-10"
+              aria-invalid={error ? true : undefined}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-zinc-400 hover:text-zinc-700"
+            >
+              {showPassword ? <Icon.EyeOff /> : <Icon.Eye />}
+            </button>
+          </div>
+        </div>
+
+        {showHelp ? (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-[13px] leading-relaxed text-zinc-600">
+            Ask a super admin to reset it from <strong>Admin users</strong>. If you&apos;re the only admin, run{" "}
+            <code className="rounded bg-white px-1 text-[12px]">npm run admin:setup</code> on your machine to set a new one.
+          </div>
+        ) : null}
+
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-zinc-700">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 text-zinc-900 accent-zinc-900"
+          />
+          Remember me for 30 days
+        </label>
+
+        <div className="min-h-[1.25rem]" aria-live="assertive">
+          {error ? (
+            <p id={errorId} role="alert" className="flex items-center gap-1.5 text-[13px] font-medium text-red-600">
+              <Icon.Alert size={14} /> {error}
             </p>
           ) : null}
         </div>
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          disabled={submitting}
-          className="w-full"
-        >
-          {submitting ? LOGIN_SUBMITTING_LABEL : LOGIN_SUBMIT_LABEL}
-        </Button>
-      </form>
-    </section>
+        <AdminButton type="submit" variant="primary" loading={submitting} className="h-10 w-full text-sm">
+          {submitting ? "Signing in…" : "Sign in"}
+        </AdminButton>
+      </div>
+    </form>
   );
 }

@@ -1,393 +1,239 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Integration tests for the admin project-management Server Actions
- * (Requirement 10; Properties 1 & 7).
- *
- * Focus areas:
- *  - Property 7 / Req 9.5: every mutating action calls `requireSession` BEFORE
- *    any Prisma write, and an unauthenticated caller (requireSession redirects /
- *    throws) results in NO mutation.
- *  - Req 10.4: invalid input returns structured field errors and writes nothing.
- *  - Req 10.1/10.2/10.3: create/update/delete call the correct Prisma ops and
- *    revalidate the public + admin surfaces.
- *  - Property 1 / Req 10.5: `reorderFeatured` enforces the 3–6 featured bound and
- *    assigns a contiguous ascending `order` matching the chosen sequence.
- *
- * `@/lib/prisma`, `@/lib/auth`, and `next/cache` are mocked so the tests never
- * touch a real database, session, or the Next cache.
+ * Project CMS actions. Prisma, auth, and the Next cache are mocked so these
+ * tests exercise the guard → validate → mutate → revalidate sequence without a
+ * database.
  */
 
-// --- Mock the shared Prisma client. Factory must not reference outer scope. --
 vi.mock("@/lib/prisma", () => {
   const client = {
     project: {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
-      updateMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
+    projectTechnology: { deleteMany: vi.fn(), createMany: vi.fn() },
+    projectMedia: { deleteMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
+    technology: { findMany: vi.fn() },
+    activityLog: { create: vi.fn() },
     $transaction: vi.fn(),
   };
   return { __esModule: true, default: client, prisma: client };
 });
 
-// --- Mock the auth guard so we can drive authed / unauthenticated branches. --
 class RedirectError extends Error {
   constructor() {
     super("NEXT_REDIRECT");
-    this.name = "RedirectError";
   }
 }
-vi.mock("@/lib/auth", () => ({
-  __esModule: true,
-  requireSession: vi.fn(),
-}));
-
-// --- Mock next/cache so revalidatePath is observable without a Next runtime. -
-vi.mock("next/cache", () => ({
-  __esModule: true,
-  revalidatePath: vi.fn(),
-}));
+vi.mock("@/lib/auth", () => ({ __esModule: true, requireAdmin: vi.fn() }));
+vi.mock("next/cache", () => ({ __esModule: true, revalidatePath: vi.fn() }));
 
 import { revalidatePath } from "next/cache";
+import type { ProjectInput } from "@/lib/validation";
 import prisma from "@/lib/prisma";
-import { requireSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import {
-  createProject,
-  deleteProject,
-  reorderFeatured,
-  updateProject,
+  deleteProjectPermanently,
+  reorderProjects,
+  restoreProject,
+  saveProject,
+  setProjectStatus,
+  trashProject,
 } from "./projects";
 
-const mockedPrisma = prisma as unknown as {
-  project: {
-    create: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
-    delete: ReturnType<typeof vi.fn>;
-    updateMany: ReturnType<typeof vi.fn>;
-  };
-  $transaction: ReturnType<typeof vi.fn>;
+type Mock = ReturnType<typeof vi.fn>;
+const db = prisma as unknown as {
+  project: Record<"create" | "update" | "delete" | "findFirst" | "findUnique", Mock>;
+  projectTechnology: Record<"deleteMany" | "createMany", Mock>;
+  projectMedia: Record<"deleteMany" | "updateMany" | "create", Mock>;
+  technology: Record<"findMany", Mock>;
+  activityLog: Record<"create", Mock>;
+  $transaction: Mock;
 };
-const mockedRequireSession = requireSession as unknown as ReturnType<
-  typeof vi.fn
->;
-const mockedRevalidate = revalidatePath as unknown as ReturnType<typeof vi.fn>;
+const mockedRequireAdmin = requireAdmin as unknown as Mock;
+const mockedRevalidate = revalidatePath as unknown as Mock;
 
-/** A valid create/update payload (mirrors projectSchema's required fields). */
-function buildProjectInput(overrides: Record<string, unknown> = {}) {
+const ADMIN = { id: "admin-1", email: "owner@example.com", name: "Owner", role: "SUPER_ADMIN" };
+
+function input(overrides: Record<string, unknown> = {}): ProjectInput {
   return {
-    title: "Realtime Analytics Platform",
-    slug: "realtime-analytics-platform",
-    summary: "A streaming analytics dashboard.",
-    problem: "Teams lacked live visibility.",
-    solution: "Built a websocket pipeline.",
-    impact: "Cut decision latency by 80%.",
-    technologies: ["Next.js", "PostgreSQL"],
-    thumbnailUrl: "https://example.com/thumb.png",
-    githubUrl: "https://github.com/me/project",
-    liveUrl: "https://project.example.com",
-    featured: true,
-    order: 0,
+    title: "PetCury",
+    slug: "petcury",
+    shortDescription: "Clinic management.",
+    problem: "Disconnected processes.",
+    solution: "One platform.",
+    result: "Faster bookings.",
+    technologyIds: ["tech-1"],
+    media: [{ mediaType: "IMAGE" as const, url: "https://x.public.blob.vercel-storage.com/a.png" }],
+    ...overrides,
+  } as ProjectInput;
+}
+
+function savedRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "p1",
+    title: "PetCury",
+    slug: "petcury",
+    status: "DRAFT",
+    updatedAt: new Date("2026-10-05T00:00:00Z"),
     ...overrides,
   };
 }
 
-/** Make `requireSession` behave like an unauthenticated guard (it redirects). */
-function makeUnauthenticated() {
-  mockedRequireSession.mockImplementationOnce(async () => {
-    throw new RedirectError();
-  });
-}
-
-/** Make `requireSession` behave like an authenticated owner. */
-function makeAuthenticated() {
-  mockedRequireSession.mockResolvedValue({
-    sub: "owner@example.com",
-    iat: 0,
-    exp: 9_999_999_999,
-  });
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  makeAuthenticated();
+  mockedRequireAdmin.mockResolvedValue(ADMIN);
+  // Interactive transactions run the callback against the same mocked client.
+  db.$transaction.mockImplementation(async (arg: unknown) =>
+    typeof arg === "function" ? (arg as (tx: unknown) => unknown)(db) : Promise.all(arg as unknown[]),
+  );
+  db.technology.findMany.mockResolvedValue([{ id: "tech-1" }]);
+  db.projectMedia.updateMany.mockResolvedValue({ count: 0 });
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-describe("Auth guard everywhere — unauthenticated mutations are rejected (Property 7; Req 9.5)", () => {
-  it("createProject rejects and performs NO write when unauthenticated", async () => {
-    makeUnauthenticated();
-
-    await expect(createProject(buildProjectInput())).rejects.toBeInstanceOf(
-      RedirectError,
-    );
-
-    expect(mockedPrisma.project.create).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("updateProject rejects and performs NO write when unauthenticated", async () => {
-    makeUnauthenticated();
-
-    await expect(
-      updateProject("project_1", buildProjectInput()),
-    ).rejects.toBeInstanceOf(RedirectError);
-
-    expect(mockedPrisma.project.update).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("deleteProject rejects and performs NO write when unauthenticated", async () => {
-    makeUnauthenticated();
-
-    await expect(deleteProject("project_1")).rejects.toBeInstanceOf(
-      RedirectError,
-    );
-
-    expect(mockedPrisma.project.delete).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("reorderFeatured rejects and performs NO write when unauthenticated", async () => {
-    makeUnauthenticated();
-
-    await expect(reorderFeatured(["a", "b", "c"])).rejects.toBeInstanceOf(
-      RedirectError,
-    );
-
-    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("checks the session BEFORE touching Prisma (guard ordering)", async () => {
-    // requireSession throws synchronously-after-await; if any create ran before
-    // the guard, the create mock would have been called. It must not be.
-    makeUnauthenticated();
-    await expect(createProject(buildProjectInput())).rejects.toBeInstanceOf(
-      RedirectError,
-    );
-    expect(mockedRequireSession).toHaveBeenCalledTimes(1);
-    expect(mockedPrisma.project.create).not.toHaveBeenCalled();
+describe("auth guard", () => {
+  it.each([
+    ["saveProject", () => saveProject(null, input(), "draft")],
+    ["setProjectStatus", () => setProjectStatus("p1", "PUBLISHED")],
+    ["trashProject", () => trashProject("p1")],
+    ["restoreProject", () => restoreProject("p1")],
+    ["deleteProjectPermanently", () => deleteProjectPermanently("p1")],
+    ["reorderProjects", () => reorderProjects(["p1", "p2"])],
+  ])("%s writes nothing when the caller is not signed in", async (_name, call) => {
+    mockedRequireAdmin.mockRejectedValueOnce(new RedirectError());
+    await expect(call()).rejects.toThrow("NEXT_REDIRECT");
+    expect(db.project.create).not.toHaveBeenCalled();
+    expect(db.project.update).not.toHaveBeenCalled();
+    expect(db.project.delete).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });
 
-describe("createProject — validated persistence (Req 10.1, 10.4)", () => {
-  it("creates the project, revalidates, and returns the new id for valid input", async () => {
-    mockedPrisma.project.create.mockResolvedValueOnce({ id: "project_1" });
-
-    const result = await createProject(buildProjectInput());
-
-    expect(result).toEqual({ success: true, data: { id: "project_1" } });
-    expect(mockedPrisma.project.create).toHaveBeenCalledTimes(1);
-    expect(mockedPrisma.project.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        title: "Realtime Analytics Platform",
-        slug: "realtime-analytics-platform",
-        featured: true,
-        order: 0,
-      }),
-    });
-    // Reflect on the public homepage + admin list (Req 10.1).
-    expect(mockedRevalidate).toHaveBeenCalledWith("/");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/projects");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/projects/[slug]", "page");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/admin/projects");
-  });
-
-  it("persists multiple project images in display order", async () => {
-    mockedPrisma.project.create.mockResolvedValueOnce({ id: "project_1" });
-
-    await createProject(
-      buildProjectInput({
-        imageUrls: [
-          "https://example.com/cover.webp",
-          "https://example.com/detail.webp",
-        ],
-      }),
-    );
-
-    expect(mockedPrisma.project.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        thumbnailUrl:
-          'portfolio-gallery:["https://example.com/cover.webp","https://example.com/detail.webp"]',
-      }),
-    });
-  });
-
-  it("returns fieldErrors and does NOT persist for invalid input (Req 10.4)", async () => {
-    const result = await createProject(
-      buildProjectInput({ slug: "Not A Slug!", technologies: [] }),
-    );
-
+describe("saveProject", () => {
+  it("rejects invalid input with field errors and writes nothing", async () => {
+    const result = await saveProject(null, input({ title: "", slug: "Not A Slug" }), "draft");
     expect(result.success).toBe(false);
-    if (result.success === false) {
-      expect(result.fieldErrors?.slug).toBeDefined();
-      expect(result.fieldErrors?.technologies).toBeDefined();
-    }
-    expect(mockedPrisma.project.create).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("surfaces a slug conflict as an inline field error", async () => {
-    const { Prisma } = await import("@prisma/client");
-    mockedPrisma.project.create.mockRejectedValueOnce(
-      new Prisma.PrismaClientKnownRequestError("Unique constraint", {
-        code: "P2002",
-        clientVersion: "6.x",
-      }),
-    );
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    const result = await createProject(buildProjectInput());
-
-    expect(result.success).toBe(false);
-    if (result.success === false) {
-      expect(result.fieldErrors?.slug).toBeDefined();
-    }
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-    consoleError.mockRestore();
-  });
-});
-
-describe("updateProject — edits reflect on the public site (Req 10.2, 10.4)", () => {
-  it("updates by id, revalidates, and returns the id for valid input", async () => {
-    mockedPrisma.project.update.mockResolvedValueOnce({ id: "project_1" });
-
-    const result = await updateProject("project_1", buildProjectInput());
-
-    expect(result).toEqual({ success: true, data: { id: "project_1" } });
-    expect(mockedPrisma.project.update).toHaveBeenCalledWith({
-      where: { id: "project_1" },
-      data: expect.objectContaining({ slug: "realtime-analytics-platform" }),
-    });
-    expect(mockedRevalidate).toHaveBeenCalledWith("/");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/admin/projects");
-  });
-
-  it("returns fieldErrors and does NOT persist for invalid input (Req 10.4)", async () => {
-    const result = await updateProject(
-      "project_1",
-      buildProjectInput({ title: "   " }),
-    );
-
-    expect(result.success).toBe(false);
-    if (result.success === false) {
+    if (!result.success) {
       expect(result.fieldErrors?.title).toBeDefined();
+      expect(result.fieldErrors?.slug).toBeDefined();
     }
-    expect(mockedPrisma.project.update).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
+    expect(db.project.create).not.toHaveBeenCalled();
   });
 
-  it("rejects a missing id without persisting", async () => {
-    const result = await updateProject("  ", buildProjectInput());
+  it("rejects unsafe link schemes", async () => {
+    const result = await saveProject(null, input({ projectUrl: "javascript:alert(1)" }), "draft");
     expect(result.success).toBe(false);
-    expect(mockedPrisma.project.update).not.toHaveBeenCalled();
+    if (!result.success) expect(result.fieldErrors?.projectUrl).toBeDefined();
+  });
+
+  it("lets drafts be saved without the full story", async () => {
+    db.project.create.mockResolvedValue(savedRow());
+    const result = await saveProject(null, input({ problem: "", solution: "", result: "" }), "draft");
+    expect(result.success).toBe(true);
+    expect(db.project.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "DRAFT", updatedById: "admin-1" }) }),
+    );
+  });
+
+  it("refuses to publish an incomplete story", async () => {
+    const result = await saveProject(null, input({ result: "" }), "publish");
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.fieldErrors?.result).toBeDefined();
+    expect(db.project.create).not.toHaveBeenCalled();
+  });
+
+  it("publishes, stamps publishedAt, writes relations, and revalidates", async () => {
+    db.project.create.mockResolvedValue(savedRow({ status: "PUBLISHED" }));
+    const result = await saveProject(null, input(), "publish");
+    expect(result.success).toBe(true);
+    const data = db.project.create.mock.calls[0]?.[0].data;
+    expect(data.status).toBe("PUBLISHED");
+    expect(data.publishedAt).toBeInstanceOf(Date);
+    expect(db.projectTechnology.createMany).toHaveBeenCalledWith({
+      data: [{ projectId: "p1", technologyId: "tech-1" }],
+    });
+    expect(db.projectMedia.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ projectId: "p1", displayOrder: 0 }),
+    });
+    expect(mockedRevalidate).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("keeps the current status on a plain save", async () => {
+    db.project.findFirst.mockResolvedValue({ status: "PUBLISHED", publishedAt: new Date("2026-01-01") });
+    db.project.update.mockResolvedValue(savedRow({ status: "PUBLISHED" }));
+    await saveProject("p1", input(), "save");
+    expect(db.project.update.mock.calls[0]?.[0].data.status).toBe("PUBLISHED");
+  });
+
+  it("maps a duplicate slug to a slug field error", async () => {
+    const { Prisma } = await import("@prisma/client");
+    db.project.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002", clientVersion: "6" }),
+    );
+    const result = await saveProject(null, input(), "draft");
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.fieldErrors?.slug?.[0]).toMatch(/already uses/);
   });
 });
 
-describe("deleteProject — removal reflects publicly (Req 10.1, 10.3)", () => {
-  it("deletes by id and revalidates", async () => {
-    mockedPrisma.project.delete.mockResolvedValueOnce({ id: "project_1" });
-
-    const result = await deleteProject("project_1");
-
-    expect(result).toEqual({ success: true });
-    expect(mockedPrisma.project.delete).toHaveBeenCalledWith({
-      where: { id: "project_1" },
-    });
-    expect(mockedRevalidate).toHaveBeenCalledWith("/");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/admin/projects");
+describe("status and deletion", () => {
+  it("publishing via status requires a complete story", async () => {
+    db.project.findFirst.mockResolvedValue({ ...savedRow(), shortDescription: "x", problem: "", solution: "y", result: "z" });
+    const result = await setProjectStatus("p1", "PUBLISHED");
+    expect(result.success).toBe(false);
+    expect(db.project.update).not.toHaveBeenCalled();
   });
 
-  it("rejects a missing id without persisting", async () => {
-    const result = await deleteProject("");
-    expect(result.success).toBe(false);
-    expect(mockedPrisma.project.delete).not.toHaveBeenCalled();
+  it("archiving hides a project without deleting it", async () => {
+    db.project.findFirst.mockResolvedValue({ ...savedRow({ status: "PUBLISHED" }), shortDescription: "x", problem: "y", solution: "y", result: "z", publishedAt: new Date() });
+    db.project.update.mockResolvedValue(savedRow({ status: "ARCHIVED" }));
+    const result = await setProjectStatus("p1", "ARCHIVED");
+    expect(result.success).toBe(true);
+    expect(db.project.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "ARCHIVED" }) }));
+    expect(db.project.delete).not.toHaveBeenCalled();
+  });
+
+  it("trash is a soft delete", async () => {
+    db.project.update.mockResolvedValue(savedRow());
+    await trashProject("p1");
+    expect(db.project.update.mock.calls[0]?.[0].data.deletedAt).toBeInstanceOf(Date);
+    expect(db.project.delete).not.toHaveBeenCalled();
+  });
+
+  it("restored projects come back as drafts", async () => {
+    db.project.update.mockResolvedValue(savedRow());
+    await restoreProject("p1");
+    expect(db.project.update.mock.calls[0]?.[0].data).toMatchObject({ deletedAt: null, status: "DRAFT" });
+  });
+
+  it("only permanently deletes projects already in the trash", async () => {
+    db.project.findUnique.mockResolvedValue({ ...savedRow(), deletedAt: null });
+    const blocked = await deleteProjectPermanently("p1");
+    expect(blocked.success).toBe(false);
+    expect(db.project.delete).not.toHaveBeenCalled();
+
+    db.project.findUnique.mockResolvedValue({ ...savedRow(), deletedAt: new Date() });
+    const ok = await deleteProjectPermanently("p1");
+    expect(ok.success).toBe(true);
+    expect(db.project.delete).toHaveBeenCalledWith({ where: { id: "p1" } });
   });
 });
 
-describe("reorderFeatured — featured bound and ordering (Property 1; Req 10.5)", () => {
-  it("rejects fewer than the minimum (3) featured projects and writes nothing", async () => {
-    const result = await reorderFeatured(["a", "b"]);
+describe("reorderProjects", () => {
+  it("assigns displayOrder by position", async () => {
+    db.project.update.mockImplementation((args: unknown) => args);
+    await reorderProjects(["b", "a", "c"]);
+    expect(db.project.update).toHaveBeenNthCalledWith(1, { where: { id: "b" }, data: { displayOrder: 0 } });
+    expect(db.project.update).toHaveBeenNthCalledWith(3, { where: { id: "c" }, data: { displayOrder: 2 } });
+  });
 
+  it("rejects duplicate ids", async () => {
+    const result = await reorderProjects(["a", "a"]);
     expect(result.success).toBe(false);
-    if (result.success === false) {
-      expect(result.formError).toContain("between 3 and 6");
-    }
-    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("rejects more than the maximum (6) featured projects and writes nothing", async () => {
-    const result = await reorderFeatured(["a", "b", "c", "d", "e", "f", "g"]);
-
-    expect(result.success).toBe(false);
-    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
-    expect(mockedRevalidate).not.toHaveBeenCalled();
-  });
-
-  it("rejects a selection with duplicate ids", async () => {
-    const result = await reorderFeatured(["a", "b", "a"]);
-
-    expect(result.success).toBe(false);
-    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
-  it("accepts the lower bound (3) and assigns contiguous ascending order", async () => {
-    mockedPrisma.$transaction.mockResolvedValueOnce([]);
-    mockedPrisma.project.update.mockImplementation((args) => args);
-    mockedPrisma.project.updateMany.mockImplementation((args) => args);
-
-    const result = await reorderFeatured(["p1", "p2", "p3"]);
-
-    expect(result).toEqual({ success: true });
-
-    // Unfeature everyone NOT selected.
-    expect(mockedPrisma.project.updateMany).toHaveBeenCalledWith({
-      where: { id: { notIn: ["p1", "p2", "p3"] } },
-      data: { featured: false },
-    });
-
-    // Feature + order each selected project by its array index.
-    expect(mockedPrisma.project.update).toHaveBeenCalledWith({
-      where: { id: "p1" },
-      data: { featured: true, order: 0 },
-    });
-    expect(mockedPrisma.project.update).toHaveBeenCalledWith({
-      where: { id: "p2" },
-      data: { featured: true, order: 1 },
-    });
-    expect(mockedPrisma.project.update).toHaveBeenCalledWith({
-      where: { id: "p3" },
-      data: { featured: true, order: 2 },
-    });
-
-    // The whole change happens in one transaction, then revalidates.
-    expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(mockedRevalidate).toHaveBeenCalledWith("/");
-    expect(mockedRevalidate).toHaveBeenCalledWith("/admin/projects");
-  });
-
-  it("accepts the upper bound (6) featured projects", async () => {
-    mockedPrisma.$transaction.mockResolvedValueOnce([]);
-    mockedPrisma.project.update.mockImplementation((args) => args);
-    mockedPrisma.project.updateMany.mockImplementation((args) => args);
-
-    const result = await reorderFeatured(["a", "b", "c", "d", "e", "f"]);
-
-    expect(result).toEqual({ success: true });
-    expect(mockedPrisma.project.update).toHaveBeenCalledTimes(6);
-  });
-
-  it("rejects malformed (non-string / empty) ids without persisting", async () => {
-    const result = await reorderFeatured(["a", "", "c"]);
-    expect(result.success).toBe(false);
-    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });

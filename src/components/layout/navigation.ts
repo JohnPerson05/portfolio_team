@@ -1,11 +1,12 @@
-import { STUDIO } from "@/features/studio/config";
+import { NAVIGATION_DEFAULTS } from "@/server/content/defaults";
+import { SETTINGS_REGISTRY } from "@/server/settings/registry";
 
 /**
- * Shared navigation data for the layout shell.
+ * Fallback navigation data for the layout shell.
  *
- * A single source of truth consumed by the desktop {@link Navbar}, the
- * {@link MobileNav} drawer, and the {@link Footer} so the public navigation
- * never drifts out of sync.
+ * At runtime the navbar, mobile drawer, and footer read the CMS-managed
+ * navigation and settings through {@link SiteChromeProvider}. These constants
+ * are only the defaults used before the CMS is configured (and in tests).
  */
 
 export interface NavLink {
@@ -13,41 +14,24 @@ export interface NavLink {
   readonly href: string;
 }
 
-export interface SocialLink {
-  readonly label: string;
-  readonly href: string;
-}
+export type SocialLink = NavLink;
 
-/** Brand wordmark shown in the navbar and footer. */
-export const BRAND_NAME = STUDIO.name;
+export const BRAND_NAME = SETTINGS_REGISTRY["studio.name"].defaultValue;
 
 /** Path to the brand logo mark used across the public shell. */
 export const BRAND_LOGO_SRC = "/images/brandlogo.png" as const;
 
-/**
- * Primary links — written for business visitors. Technical background pages
- * (toolkit, experience) live in the footer under {@link BACKGROUND_LINKS}.
- */
-export const NAV_LINKS: readonly NavLink[] = [
-  { label: "Studio", href: "/about" },
-  { label: "Services", href: "/#services" },
-  { label: "Work", href: "/projects" },
-  { label: "Process", href: "/#process" },
-  { label: "Insights", href: "/blog" },
-];
+const pick = (location: "HEADER" | "FOOTER"): NavLink[] =>
+  NAVIGATION_DEFAULTS.filter((item) => item.location === location).map(
+    ({ label, href }) => ({ label, href }),
+  );
 
-/** Secondary, more technical pages — surfaced quietly in the footer. */
-export const BACKGROUND_LINKS: readonly NavLink[] = [
-  { label: "The toolkit", href: "/skills" },
-  { label: "John's background", href: "/experience" },
-  { label: "References", href: "/testimonials" },
-];
+export const NAV_LINKS: readonly NavLink[] = pick("HEADER");
+export const BACKGROUND_LINKS: readonly NavLink[] = pick("FOOTER");
 
-/** Prominent call-to-action surfaced in the navbar and mobile drawer. */
 export const PRIMARY_CTA: NavLink = {
-  label: "Start a project",
-  href: "/contact",
+  label: SETTINGS_REGISTRY["cta.text"].defaultValue,
+  href: SETTINGS_REGISTRY["cta.url"].defaultValue,
 };
 
-/** Studio social profiles shown in the footer (add verified links only). */
-export const SOCIAL_LINKS: readonly SocialLink[] = STUDIO.links;
+export const SOCIAL_LINKS: readonly SocialLink[] = [];

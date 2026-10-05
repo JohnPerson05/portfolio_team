@@ -1,15 +1,27 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./BrandLogo";
-import { STUDIO } from "@/features/studio/config";
 import {
   BACKGROUND_LINKS,
   BRAND_NAME,
   NAV_LINKS,
+  PRIMARY_CTA,
   SOCIAL_LINKS,
+  type NavLink,
 } from "./navigation";
 
 export interface FooterProps {
+  /** Studio name (CMS setting `studio.name`). */
+  studioName?: string;
+  /** Short paragraph under the brand (CMS setting `footer.text`). */
+  text?: string;
+  /** "Explore" column — the header navigation. */
+  exploreLinks?: readonly NavLink[];
+  /** "Behind the studio" column — footer navigation items. */
+  secondaryLinks?: readonly NavLink[];
+  socialLinks?: readonly NavLink[];
+  contactEmail?: string;
+  cta?: NavLink;
   className?: string;
 }
 
@@ -22,7 +34,16 @@ export interface FooterProps {
  * targets; the content sits in a centered, max-width container with horizontal
  * padding so it never overflows the viewport (Property 12).
  */
-export function Footer({ className }: FooterProps) {
+export function Footer({
+  studioName = BRAND_NAME,
+  text = "Two people, one digital product team. We design, build, launch, and look after the products businesses run on.",
+  exploreLinks = NAV_LINKS,
+  secondaryLinks = BACKGROUND_LINKS,
+  socialLinks = SOCIAL_LINKS,
+  contactEmail,
+  cta = PRIMARY_CTA,
+  className,
+}: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
@@ -34,20 +55,27 @@ export function Footer({ className }: FooterProps) {
           {/* Brand */}
           <div className="max-w-sm">
             <div className="flex items-center gap-space-3">
-              <BrandLogo size={56} className="h-14 w-14" />
+              <BrandLogo size={56} className="h-14 w-14" alt={studioName} />
               <p className="font-display text-body-lg font-semibold tracking-tight text-text">
-                {BRAND_NAME}
+                {studioName}
               </p>
             </div>
             <p className="mt-space-3 text-pretty text-body text-muted">
-              {STUDIO.tagline} We design, build, launch, and look after the
-              digital products businesses run on.
+              {text}
             </p>
+            {contactEmail ? (
+              <a
+                href={`mailto:${contactEmail}`}
+                className="mt-space-2 inline-flex min-h-11 items-center text-body text-text/90 transition-colors hover:text-accent"
+              >
+                {contactEmail}
+              </a>
+            ) : null}
             <Link
-              href="/contact"
-              className="mt-space-3 inline-flex min-h-11 items-center font-mono text-caption uppercase tracking-widest text-accent transition-colors hover:text-text"
+              href={cta.href}
+              className="mt-space-3 flex min-h-11 w-fit items-center font-mono text-caption uppercase tracking-widest text-accent transition-colors hover:text-text"
             >
-              Start a project →
+              {cta.label} →
             </Link>
           </div>
 
@@ -58,7 +86,7 @@ export function Footer({ className }: FooterProps) {
                 Explore
               </h2>
               <ul className="mt-space-2 flex flex-col gap-space-1">
-                {NAV_LINKS.map((link) => (
+                {exploreLinks.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
@@ -75,35 +103,37 @@ export function Footer({ className }: FooterProps) {
               </ul>
             </nav>
 
-            <nav aria-label="Behind the studio">
-              <h2 className="text-caption font-medium uppercase tracking-widest text-muted">
-                Behind the studio
-              </h2>
-              <ul className="mt-space-2 flex flex-col gap-space-1">
-                {BACKGROUND_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className={cn(
-                        "inline-flex min-h-11 items-center rounded-md text-body text-muted",
-                        "transition-colors hover:text-text",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-                      )}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            {secondaryLinks.length > 0 ? (
+              <nav aria-label="Behind the studio">
+                <h2 className="text-caption font-medium uppercase tracking-widest text-muted">
+                  Behind the studio
+                </h2>
+                <ul className="mt-space-2 flex flex-col gap-space-1">
+                  {secondaryLinks.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className={cn(
+                          "inline-flex min-h-11 items-center rounded-md text-body text-muted",
+                          "transition-colors hover:text-text",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
 
-            {SOCIAL_LINKS.length > 0 ? (
+            {socialLinks.length > 0 ? (
               <div>
                 <h2 className="text-caption font-medium uppercase tracking-widest text-muted">
                   Connect
                 </h2>
                 <ul className="mt-space-2 flex flex-col gap-space-1">
-                  {SOCIAL_LINKS.map((social) => (
+                  {socialLinks.map((social) => (
                     <li key={social.href}>
                       <a
                         href={social.href}
@@ -127,7 +157,7 @@ export function Footer({ className }: FooterProps) {
 
         <div className="mt-space-8 border-t border-hairline pt-space-4">
           <p className="text-caption text-muted">
-            &copy; {year} {BRAND_NAME}. All rights reserved.
+            &copy; {year} {studioName}. All rights reserved.
           </p>
         </div>
       </div>

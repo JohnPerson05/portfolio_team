@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/features/blog", () => ({
   getPublishedPosts: vi.fn(),
 }));
-vi.mock("@/features/projects", () => ({
-  getProjects: vi.fn(),
+vi.mock("@/server/public/queries", () => ({
+  getPublishedProjects: vi.fn(),
 }));
 
 import { getPublishedPosts } from "@/features/blog";
-import { getProjects } from "@/features/projects";
+import { getPublishedProjects as getProjects } from "@/server/public/queries";
 import robots from "./robots";
 import sitemap from "./sitemap";
 
@@ -40,7 +40,7 @@ describe("search-engine routes", () => {
       },
     ]);
     mockedGetProjects.mockResolvedValueOnce([
-      { slug: "enterprise-banking-services" },
+      { slug: "petcury", updatedAt: "2026-09-01T00:00:00.000Z" },
     ]);
 
     const entries = await sitemap();
@@ -48,12 +48,13 @@ describe("search-engine routes", () => {
       "https://portfolio.example/",
       "https://portfolio.example/blog",
       "https://portfolio.example/about",
-      "https://portfolio.example/projects",
+      "https://portfolio.example/work",
+      "https://portfolio.example/services",
       "https://portfolio.example/skills",
       "https://portfolio.example/experience",
       "https://portfolio.example/testimonials",
       "https://portfolio.example/contact",
-      "https://portfolio.example/projects/enterprise-banking-services",
+      "https://portfolio.example/work/petcury",
       "https://portfolio.example/blog/published",
     ]);
   });

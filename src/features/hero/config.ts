@@ -1,13 +1,10 @@
 /**
- * Hero content + types.
- *
- * The hero copy is sourced from the studio config (`features/studio/config.ts`)
- * so the brand statement lives in one place. Props on {@link Hero} can still
- * override any field (e.g. for experiments or a future CMS source).
+ * Hero content types. Values come from CMS settings (`hero.*`) — see
+ * `heroContentFromSettings`.
  */
-import { HERO, STUDIO } from "@/features/studio/config";
+import type { SiteSettings } from "@/server/settings/registry";
+import { defaultSettings } from "@/server/settings/registry";
 
-/** A secondary link rendered beneath the hero CTAs (e.g. LinkedIn). */
 export interface HeroLink {
   readonly label: string;
   readonly href: string;
@@ -18,31 +15,40 @@ export interface HeroCta {
   readonly href: string;
 }
 
-/** The complete, resolved content the hero renders. */
 export interface HeroContent {
-  /** Small label above the headline. */
   readonly eyebrow: string;
-  /** First part of the `<h1>` statement. */
   readonly headline: string;
-  /** Highlighted second part of the `<h1>` statement. */
   readonly headlineAccent: string;
-  /** Supporting paragraph beneath the headline. */
   readonly supporting: string;
   readonly primaryCta: HeroCta;
   readonly secondaryCta: HeroCta;
-  /** Availability note shown in the status pill. */
   readonly availability: string;
-  /** Optional secondary links (studio social profiles, etc.). */
   readonly links: readonly HeroLink[];
+  readonly outcomes: readonly string[];
 }
 
-export const HERO_CONTENT: HeroContent = {
-  eyebrow: HERO.eyebrow,
-  headline: HERO.headline,
-  headlineAccent: HERO.headlineAccent,
-  supporting: HERO.supporting,
-  primaryCta: HERO.primaryCta,
-  secondaryCta: HERO.secondaryCta,
-  availability: HERO.availability,
-  links: STUDIO.links,
-};
+export function heroContentFromSettings(
+  settings: SiteSettings,
+  links: readonly HeroLink[] = [],
+): HeroContent {
+  return {
+    eyebrow: settings["hero.eyebrow"],
+    headline: settings["hero.title"],
+    headlineAccent: settings["hero.titleAccent"],
+    supporting: settings["hero.subtitle"],
+    primaryCta: {
+      label: settings["hero.primaryCtaLabel"],
+      href: settings["hero.primaryCtaUrl"],
+    },
+    secondaryCta: {
+      label: settings["hero.secondaryCtaLabel"],
+      href: settings["hero.secondaryCtaUrl"],
+    },
+    availability: settings["hero.availability"],
+    links,
+    outcomes: settings["hero.outcomes"],
+  };
+}
+
+/** Defaults (used by tests and as a fallback). */
+export const HERO_CONTENT: HeroContent = heroContentFromSettings(defaultSettings());

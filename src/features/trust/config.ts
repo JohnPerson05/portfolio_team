@@ -1,4 +1,7 @@
-import { STUDIO_STATS } from "@/features/studio/config";
+import {
+  SETTINGS_REGISTRY,
+  type SettingStat,
+} from "@/server/settings/registry";
 
 /**
  * Trust / Stats section content + types (Task 13).
@@ -32,8 +35,17 @@ export interface TrustStat {
   readonly suffix?: string;
 }
 
-/**
- * Default trust metrics — sourced from the studio config so the numbers stay
- * in one place. Only figures backed by the team's real experience belong here.
- */
-export const TRUST_STATS: readonly TrustStat[] = STUDIO_STATS;
+/** Map the `home.stats` setting onto the section's stat shape. */
+export function toTrustStats(stats: readonly SettingStat[]): TrustStat[] {
+  return stats.map((stat, index) => ({
+    id: `stat-${index}`,
+    label: stat.label,
+    value: stat.value,
+    suffix: stat.suffix || undefined,
+  }));
+}
+
+/** Defaults (the `home.stats` setting's default value). */
+export const TRUST_STATS: readonly TrustStat[] = toTrustStats(
+  SETTINGS_REGISTRY["home.stats"].defaultValue,
+);

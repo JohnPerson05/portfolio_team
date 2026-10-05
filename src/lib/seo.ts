@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
-import type { PostView } from "@/types";
-import { STUDIO, TEAM } from "@/features/studio/config";
+import type { PostView, ProjectView, TeamMemberView } from "@/types";
+import {
+  SETTINGS_REGISTRY,
+  type SiteSettings,
+} from "@/server/settings/registry";
 
 const fallbackUrl = "http://localhost:3000";
 
+/**
+ * Static fallbacks only. Live values (studio name, default title/description,
+ * share image) come from CMS settings — use {@link pageMetadata}.
+ */
 export const siteConfig = {
-  name: STUDIO.name,
-  title: `${STUDIO.name} — ${STUDIO.tagline}`,
-  description: STUDIO.description,
+  name: SETTINGS_REGISTRY["studio.name"].defaultValue,
+  title: SETTINGS_REGISTRY["seo.title"].defaultValue,
+  description: SETTINGS_REGISTRY["seo.description"].defaultValue,
   locale: "en_US",
-  /** Default share image for Open Graph / Twitter cards. */
-  avatar: STUDIO.shareImage,
+  avatar: SETTINGS_REGISTRY["seo.ogImage"].defaultValue,
 } as const;
 
 export function getSiteUrl(): URL {
@@ -27,19 +33,25 @@ export function absoluteUrl(path: string): string {
   return new URL(path, getSiteUrl()).toString();
 }
 
+export interface PageMetadataInput {
+  title: string;
+  description: string;
+  path: string;
+  image?: string;
+  type?: "website" | "article";
+  /** Studio name for OpenGraph `siteName`. */
+  siteName?: string;
+}
+
+/** Build canonical + OpenGraph + Twitter metadata for a page. */
 export function createPageMetadata({
   title,
   description,
   path,
   image = siteConfig.avatar,
   type = "website",
-}: {
-  title: string;
-  description: string;
-  path: string;
-  image?: string;
-  type?: "website" | "article";
-}): Metadata {
+  siteName = siteConfig.name,
+}: PageMetadataInput): Metadata {
   const url = absoluteUrl(path);
   const imageUrl = absoluteUrl(image);
 
@@ -52,7 +64,7 @@ export function createPageMetadata({
       url,
       title,
       description,
-      siteName: siteConfig.name,
+      siteName,
       locale: siteConfig.locale,
       images: [{ url: imageUrl, alt: title }],
     },
@@ -66,43 +78,81 @@ export function createPageMetadata({
 }
 
 /**
- * Organization JSON-LD for the studio, listing both team members. Placeholder
- * team members (no real details yet) are left out of structured data.
+ * {@link createPageMetadata} with CMS defaults applied: the share image falls
+ * back to `seo.ogImage` and `siteName` to `studio.name`.
  */
-export function studioJsonLd() {
-  const url = getSiteUrl().toString();
+export async function pageMetadata(
+  input: Omit<PageMetadataInput, "siteName">,
+): Promise<Metadata> {
+  // Imported lazily so this module stays usable in non-server contexts/tests.
+  const { getSiteSettings } = await import("@/server/public/queries");
+  const settings = await getSiteSettings();
+  return createPageMetadata({
+    ...input,
+    image: input.image || settings["seo.ogImage"] || siteConfig.avatar,
+    siteName: settings["studio.name"],
+  });
+}
 
+/** Organization JSON-LD for the studio and its (published) team. */
+export function studioJsonLd(
+  settings: Pick<
+    SiteSettings,
+    | "studio.name"
+    | "studio.tagline"
+    | "seo.description"
+    | "seo.ogImage"
+    | "social.linkedin"
+    | "social.github"
+    | "social.x"
+  >,
+  team: readonly Pick<TeamMemberView, "name" | "role" | "profileImage">[] = [],
+) {
   return {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
-    name: siteConfig.name,
-    url,
-    image: absoluteUrl(siteConfig.avatar),
-    description: siteConfig.description,
-    slogan: STUDIO.tagline,
-    sameAs: STUDIO.links.map(({ href }) => href),
-    employee: TEAM.filter((member) => !member.isPlaceholder).map((member) => ({
+    name: settings["studio.name"],
+    url: getSiteUrl().toString(),
+    image: absoluteUrl(settings["seo.ogImage"] || siteConfig.avatar),
+    description: settings["seo.description"],
+    slogan: settings["studio.tagline"],
+    sameAs: [settings["social.linkedin"], settings["social.github"], settings["social.x"]].filter(
+      Boolean,
+    ),
+    employee: team.map((member) => ({
       "@type": "Person",
       name: member.name,
-      jobTitle: member.discipline,
-      ...(member.photo ? { image: absoluteUrl(member.photo) } : {}),
+      jobTitle: member.role,
+      ...(member.profileImage ? { image: absoluteUrl(member.profileImage) } : {}),
     })),
-    knowsAbout: [
-      "Digital product development",
-      "Web application development",
-      "Internal business tools",
-      "Customer portals",
-      "MVP development",
-      "Identity and access management",
-      "IT operations and support",
-    ],
   };
 }
 
-/** @deprecated Use {@link studioJsonLd}. Kept for backwards compatibility. */
-export const personJsonLd = studioJsonLd;
+/** CreativeWork JSON-LD for a case study page. */
+export function projectJsonLd(project: ProjectView, studioName: string) {
+  const url = absoluteUrl(`/work/${project.slug}`);
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: project.title,
+    headline: project.seoTitle ?? project.title,
+    description: project.seoDescription ?? project.shortDescription,
+    url,
+    mainEntityOfPage: url,
+    ...(project.ogImage || project.coverImage
+      ? { image: absoluteUrl((project.ogImage ?? project.coverImage) as string) }
+      : {}),
+    ...(project.category ? { genre: project.category } : {}),
+    ...(project.publishedAt ? { datePublished: project.publishedAt } : {}),
+    dateModified: project.updatedAt,
+    ...(project.technologies.length > 0
+      ? { keywords: project.technologies.map((t) => t.name).join(", ") }
+      : {}),
+    creator: { "@type": "Organization", name: studioName, url: getSiteUrl().toString() },
+  };
+}
 
-export function blogPostingJsonLd(post: PostView) {
+export function blogPostingJsonLd(post: PostView, studioName: string = siteConfig.name) {
   const url = absoluteUrl(`/blog/${post.slug}`);
 
   return {
@@ -121,12 +171,12 @@ export function blogPostingJsonLd(post: PostView) {
       : {}),
     author: {
       "@type": "Organization",
-      name: siteConfig.name,
+      name: studioName,
       url: getSiteUrl().toString(),
     },
     publisher: {
       "@type": "Organization",
-      name: siteConfig.name,
+      name: studioName,
     },
   };
 }

@@ -26,6 +26,8 @@ export interface TestimonialsProps {
   eyebrow?: string;
   /** Section heading text. */
   heading?: string;
+  /** Supporting copy under the heading. */
+  description?: string;
   showDetailLink?: boolean;
   className?: string;
 }
@@ -57,6 +59,7 @@ export async function Testimonials({
   testimonials,
   eyebrow = TESTIMONIALS_EYEBROW,
   heading = TESTIMONIALS_HEADING,
+  description = "What clients and collaborators say about working with us.",
   showDetailLink = true,
   className,
 }: TestimonialsProps) {
@@ -82,7 +85,7 @@ export async function Testimonials({
           id={headingId}
           eyebrow={eyebrow}
           heading={heading}
-          description="A recommendation-style view of professional relationships, delivery context, and trusted collaboration."
+          description={description}
           align="left"
         />
 
@@ -166,6 +169,14 @@ export async function Testimonials({
                         <blockquote className="border-accent/40 mt-space-4 text-pretty border-l-2 pl-space-3 font-sans text-body-lg leading-relaxed text-text">
                           <p>&ldquo;{testimonial.quote}&rdquo;</p>
                         </blockquote>
+                        {testimonial.project ? (
+                          <Link
+                            href={`/work/${testimonial.project.slug}`}
+                            className="mt-space-2 inline-flex min-h-11 items-center font-mono text-[0.62rem] uppercase tracking-widest text-accent transition-colors hover:text-text"
+                          >
+                            About: {testimonial.project.title} →
+                          </Link>
+                        ) : null}
                       </figure>
                     </FadeUp>
                   );

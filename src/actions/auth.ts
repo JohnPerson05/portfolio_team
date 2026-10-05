@@ -1,56 +1,60 @@
 "use server";
 
-import { createSession, destroySession, verifyCredentials } from "@/lib/auth";
+import { headers } from "next/headers";
+
+import { authenticate, createSession, destroySession } from "@/lib/auth";
+import { getClientIp } from "@/lib/client-ip";
+import { logActivity } from "@/server/admin/activity";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { ActionResult } from "@/types";
 
 /**
- * Authentication Server Actions (Requirement 9.2, 9.3, 9.4; Property 8).
+ * Authentication Server Actions.
  *
- *  - {@link login}: validates presence, verifies owner credentials, and on
- *    success establishes the session cookie. On any failure it returns a single
- *    GENERIC error so an attacker cannot distinguish "wrong email" from "wrong
- *    password" (no user enumeration, Requirement 9.3).
- *  - {@link logout}: clears the session cookie, revoking access (Requirement 9.4).
+ * {@link login} always answers with the same generic error for missing fields,
+ * unknown email, inactive account, and wrong password (no user enumeration),
+ * and is rate limited per client IP to slow down password guessing.
  */
 
-/**
- * Generic credentials error. Intentionally identical for missing fields,
- * unknown email, and wrong password to avoid leaking which part was wrong.
- */
 const GENERIC_CREDENTIALS_ERROR = "Invalid email or password.";
+const RATE_LIMITED_ERROR =
+  "Too many sign-in attempts. Please wait a minute and try again.";
 
-/**
- * Authenticate the owner from submitted form data (Requirement 9.2, 9.3).
- *
- * On success a session cookie is set and `{ success: true }` is returned (the
- * caller — the login page — performs the post-login navigation). On any failure
- * NO cookie is set and a generic `formError` is returned (Property 8: a failed
- * login never establishes a session).
- */
+/** 10 attempts per IP per 5 minutes. */
+const LOGIN_RATE_LIMIT = { limit: 10, windowMs: 5 * 60_000 };
+
 export async function login(formData: FormData): Promise<ActionResult> {
   const emailValue = formData.get("email");
   const passwordValue = formData.get("password");
+  const remember = formData.get("remember") === "on";
 
   const email = typeof emailValue === "string" ? emailValue.trim() : "";
   const password = typeof passwordValue === "string" ? passwordValue : "";
 
-  // Presence check. Same generic error as a credential mismatch.
-  if (email === "" || password === "") {
+  const ip = getClientIp(await headers());
+  if (!checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT).allowed) {
+    return { success: false, formError: RATE_LIMITED_ERROR };
+  }
+
+  if (email === "" || password === "" || password.length > 256) {
     return { success: false, formError: GENERIC_CREDENTIALS_ERROR };
   }
 
-  const ok = await verifyCredentials(email, password);
-  if (!ok) {
+  const admin = await authenticate(email, password);
+  if (!admin) {
     return { success: false, formError: GENERIC_CREDENTIALS_ERROR };
   }
 
-  await createSession(email);
+  await createSession(admin, { remember });
+  await logActivity(admin, {
+    action: "auth.login",
+    entityType: "admin",
+    entityId: admin.id,
+    summary: `${admin.name} signed in`,
+  });
   return { success: true };
 }
 
-/**
- * Log the owner out by clearing the session cookie (Requirement 9.4).
- */
 export async function logout(): Promise<void> {
   await destroySession();
 }

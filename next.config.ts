@@ -5,7 +5,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // Only optimize images from our own storage. Other external URLs render
+    // unoptimized (see `src/lib/images.ts`) so the optimizer can't be used as
+    // an open image proxy.
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+    ],
+  },
+  async redirects() {
+    return [
+      { source: "/projects", destination: "/work", permanent: true },
+      { source: "/projects/:slug", destination: "/work/:slug", permanent: true },
+      { source: "/admin/dashboard", destination: "/admin", permanent: false },
+    ];
   },
   async headers() {
     return [
@@ -20,6 +32,20 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
         ],
+      },
+      {
+        // Dev-only local uploads: never let an uploaded file run script.
+        source: "/uploads/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; media-src 'self'",
+          },
+        ],
+      },
+      {
+        source: "/admin/(.*)",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
     ];
   },

@@ -2,7 +2,6 @@ import type {
   ContactSubmission,
   Experience,
   Post,
-  Project,
   Testimonial,
 } from "@prisma/client";
 import { PostStatus } from "@prisma/client";
@@ -12,27 +11,8 @@ import {
   toContactSubmissionView,
   toExperienceView,
   toPostView,
-  toProjectView,
   toTestimonialView,
 } from "./content";
-
-const baseProject: Project = {
-  id: "p1",
-  title: "Project One",
-  slug: "project-one",
-  summary: "summary",
-  problem: "problem",
-  solution: "solution",
-  impact: "impact",
-  technologies: ["Next.js"],
-  thumbnailUrl: null,
-  githubUrl: null,
-  liveUrl: null,
-  featured: true,
-  order: 0,
-  createdAt: new Date("2024-01-01T00:00:00.000Z"),
-  updatedAt: new Date("2024-01-01T00:00:00.000Z"),
-};
 
 const basePost: Post = {
   id: "post1",
@@ -46,38 +26,6 @@ const basePost: Post = {
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
   updatedAt: new Date("2024-01-01T00:00:00.000Z"),
 };
-
-describe("toProjectView", () => {
-  it("maps nullable URL fields to undefined when absent", () => {
-    const view = toProjectView(baseProject);
-    expect(view.thumbnailUrl).toBeUndefined();
-    expect(view.githubUrl).toBeUndefined();
-    expect(view.liveUrl).toBeUndefined();
-    expect(view.technologies).toEqual(["Next.js"]);
-    expect(view.imageUrls).toEqual([]);
-  });
-
-  it("preserves present URL fields", () => {
-    const view = toProjectView({
-      ...baseProject,
-      githubUrl: "https://github.com/x",
-    });
-    expect(view.githubUrl).toBe("https://github.com/x");
-  });
-
-  it("decodes an ordered project gallery and uses its first image as cover", () => {
-    const view = toProjectView({
-      ...baseProject,
-      thumbnailUrl:
-        'portfolio-gallery:["https://example.com/cover.webp","https://example.com/detail.webp"]',
-    });
-    expect(view.imageUrls).toEqual([
-      "https://example.com/cover.webp",
-      "https://example.com/detail.webp",
-    ]);
-    expect(view.thumbnailUrl).toBe("https://example.com/cover.webp");
-  });
-});
 
 describe("toPostView", () => {
   it("serializes publishedAt to an ISO string", () => {
@@ -142,13 +90,17 @@ describe("toExperienceView", () => {
 const baseTestimonial: Testimonial = {
   id: "t1",
   quote: "One of the most thoughtful engineers I've worked with.",
-  author: "Dana Whitfield",
+  name: "Dana Whitfield",
   role: "VP of Engineering",
   company: "Vertex Labs",
-  avatarUrl: "/images/testimonials/dana.jpg",
+  avatar: "/images/testimonials/dana.jpg",
   logoUrl: "/images/logos/vertex.svg",
-  order: 1,
+  projectId: null,
+  displayOrder: 1,
+  isFeatured: false,
+  isPublished: true,
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2024-01-01T00:00:00.000Z"),
 };
 
 describe("toTestimonialView", () => {
@@ -173,12 +125,19 @@ describe("toTestimonialView", () => {
     const view = toTestimonialView({
       ...baseTestimonial,
       company: null,
-      avatarUrl: null,
+      avatar: null,
       logoUrl: null,
     });
     expect(view.company).toBeUndefined();
     expect(view.avatarUrl).toBeUndefined();
     expect(view.logoUrl).toBeUndefined();
+  });
+
+  it("includes a linked project only when one is given", () => {
+    expect(toTestimonialView(baseTestimonial).project).toBeUndefined();
+    expect(
+      toTestimonialView({ ...baseTestimonial, project: { title: "PetCury", slug: "petcury" } }).project,
+    ).toEqual({ title: "PetCury", slug: "petcury" });
   });
 
   it("does not carry the Prisma-only createdAt field", () => {
@@ -222,6 +181,13 @@ describe("toContactSubmissionView", () => {
       company: null,
     });
     expect(view.company).toBeUndefined();
+  });
+
+  it("includes a linked project only when one is given", () => {
+    expect(toTestimonialView(baseTestimonial).project).toBeUndefined();
+    expect(
+      toTestimonialView({ ...baseTestimonial, project: { title: "PetCury", slug: "petcury" } }).project,
+    ).toEqual({ title: "PetCury", slug: "petcury" });
   });
 
   it("does not carry the Prisma-only createdAt field", () => {

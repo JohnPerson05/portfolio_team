@@ -4,6 +4,11 @@ import { EventType } from "@prisma/client";
 // Mock the shared Prisma client so these tests never touch a real database.
 // The factory must not reference outer-scope variables (vi.mock is hoisted), so
 // the mock functions are created inline and retrieved via the imported module.
+vi.mock("@/lib/auth", () => ({
+  __esModule: true,
+  requireAdmin: vi.fn(async () => ({ id: "u1", email: "o@example.com", name: "O", role: "SUPER_ADMIN" })),
+}));
+
 vi.mock("@/lib/prisma", () => {
   const client = {
     analyticsEvent: {

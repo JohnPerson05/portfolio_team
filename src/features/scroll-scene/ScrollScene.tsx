@@ -9,29 +9,31 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
+import { imageSource } from "@/lib/images";
 import { cn } from "@/lib/utils";
+import type { ProcessStepView } from "@/types";
 import {
-  SCROLL_SCENE_CHAPTERS,
   SCROLL_SCENE_COVER,
-  SCROLL_SCENE_EYEBROW,
-  SCROLL_SCENE_HEADING,
+  toChapters,
   type ScrollSceneChapter,
 } from "./config";
 
 function ChapterPanel({
   chapter,
   index,
+  total,
   progress,
   reducedMotion,
 }: {
   chapter: ScrollSceneChapter;
   index: number;
+  total: number;
   progress: MotionValue<number>;
   reducedMotion: boolean;
 }) {
-  const start = index / SCROLL_SCENE_CHAPTERS.length;
-  const mid = (index + 0.45) / SCROLL_SCENE_CHAPTERS.length;
-  const end = (index + 1) / SCROLL_SCENE_CHAPTERS.length;
+  const start = index / total;
+  const mid = (index + 0.45) / total;
+  const end = (index + 1) / total;
 
   const opacity = useTransform(
     progress,
@@ -70,15 +72,16 @@ function ChapterPanel({
 function StepRow({
   chapter,
   index,
+  total,
   progress,
   reducedMotion,
 }: {
   chapter: ScrollSceneChapter;
   index: number;
+  total: number;
   progress: MotionValue<number>;
   reducedMotion: boolean;
 }) {
-  const total = SCROLL_SCENE_CHAPTERS.length;
   const reached = (index + 0.15) / total;
   const fill = useTransform(
     progress,
@@ -99,7 +102,7 @@ function StepRow({
         />
       </span>
       <span className="truncate font-sans text-[0.78rem] text-text">
-        {chapter.label.split("— ")[1] ?? chapter.label}
+        {chapter.short}
       </span>
       <motion.span
         style={{ opacity: fill }}
@@ -113,9 +116,11 @@ function StepRow({
 
 /** A small, abstract "your project" board that fills in as the visitor scrolls. */
 function ProjectBoard({
+  chapters,
   progress,
   reducedMotion,
 }: {
+  chapters: readonly ScrollSceneChapter[];
   progress: MotionValue<number>;
   reducedMotion: boolean;
 }) {
@@ -143,11 +148,12 @@ function ProjectBoard({
         />
       </div>
       <ul className="mt-space-1 flex flex-col gap-space-1">
-        {SCROLL_SCENE_CHAPTERS.map((chapter, index) => (
+        {chapters.map((chapter, index) => (
           <StepRow
             key={chapter.id}
             chapter={chapter}
             index={index}
+            total={chapters.length}
             progress={progress}
             reducedMotion={reducedMotion}
           />
@@ -165,7 +171,20 @@ function ProjectBoard({
  * through and ticks off as the visitor scrolls.
  * Honors `prefers-reduced-motion` by freezing to a readable static composition.
  */
-export function ScrollScene({ className }: { className?: string }) {
+export function ScrollScene({
+  steps,
+  eyebrow,
+  heading,
+  coverImage = SCROLL_SCENE_COVER,
+  className,
+}: {
+  steps: readonly ProcessStepView[];
+  eyebrow?: string;
+  heading: string;
+  coverImage?: string;
+  className?: string;
+}) {
+  const chapters = toChapters(steps);
   const trackRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion() === true;
   const { scrollYProgress } = useScroll({
@@ -234,6 +253,9 @@ export function ScrollScene({ className }: { className?: string }) {
   const innerRingOpacity = useTransform(ringOpacity, (value) => value * 0.7);
 
   const headingId = "scroll-scene-heading";
+  if (chapters.length === 0) return null;
+  // ~85vh of scrolling per step (4 steps → 340vh).
+  const trackHeight = `${Math.max(2, chapters.length) * 85}vh`;
 
   return (
     <section
@@ -241,7 +263,7 @@ export function ScrollScene({ className }: { className?: string }) {
       id="process"
       aria-labelledby={headingId}
       className={cn("relative w-full", className)}
-      style={{ height: reducedMotion ? "auto" : "340vh" }}
+      style={{ height: reducedMotion ? "auto" : trackHeight }}
     >
       <div
         className={cn(
@@ -260,21 +282,22 @@ export function ScrollScene({ className }: { className?: string }) {
           <div className="relative z-10 flex flex-col gap-space-4">
             <div>
               <p className="font-mono text-caption uppercase tracking-[0.2em] text-accent">
-                {SCROLL_SCENE_EYEBROW}
+                {eyebrow}
               </p>
               <h2
                 id={headingId}
                 className="mt-space-3 max-w-xl text-balance font-display text-h2 font-semibold tracking-[-0.04em] text-text"
               >
-                {SCROLL_SCENE_HEADING}
+                {heading}
               </h2>
             </div>
             <div className="relative min-h-[11rem] w-full max-w-xl">
-              {SCROLL_SCENE_CHAPTERS.map((chapter, index) => (
+              {chapters.map((chapter, index) => (
                 <ChapterPanel
                   key={chapter.id}
                   chapter={chapter}
                   index={index}
+                  total={chapters.length}
                   progress={scrollYProgress}
                   reducedMotion={reducedMotion}
                 />
@@ -313,7 +336,7 @@ export function ScrollScene({ className }: { className?: string }) {
               }}
             >
               <Image
-                src={SCROLL_SCENE_COVER}
+                {...imageSource(coverImage || SCROLL_SCENE_COVER)}
                 alt=""
                 fill
                 sizes="(max-width: 1024px) 90vw, 36rem"
@@ -335,6 +358,7 @@ export function ScrollScene({ className }: { className?: string }) {
               }}
             >
               <ProjectBoard
+                chapters={chapters}
                 progress={scrollYProgress}
                 reducedMotion={reducedMotion}
               />

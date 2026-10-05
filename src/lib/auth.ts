@@ -1,150 +1,212 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { AdminRole } from "@prisma/client";
 
-import { verifyPassword } from "@/lib/password";
+import prisma from "@/lib/prisma";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import {
   ADMIN_LOGIN_PATH,
   createSessionToken,
   DEFAULT_SESSION_TTL_SECONDS,
+  REMEMBER_ME_TTL_SECONDS,
   SESSION_COOKIE_NAME,
   verifySessionToken,
   type SessionPayload,
 } from "@/lib/session-token";
 
 /**
- * Server-side authentication for the single-owner CMS (Requirement 9;
- * Properties 7 & 8).
+ * Server-side authentication for the studio CMS.
  *
- * NODE-ONLY. This module reads the session cookie via `next/headers`, verifies
- * owner credentials with `node:crypto` (through `@/lib/password`), and signs the
- * session token. It is used by Server Components, the admin layout, and Server
- * Actions — never by `middleware.ts` (which uses the Edge-safe
- * `@/lib/session-token` directly).
+ * NODE-ONLY. Used by Server Components, layouts, route handlers, and Server
+ * Actions — never by `src/proxy.ts` (which uses the Edge-safe
+ * `@/lib/session-token` directly and only checks the cookie signature).
  *
- * Defense-in-depth (Property 7): middleware guards `/admin` routes, AND every
- * mutating admin action independently calls {@link requireSession}.
+ * Defense in depth:
+ *  1. `src/proxy.ts` rejects requests without a validly signed cookie.
+ *  2. The admin layout calls {@link requireAdmin}.
+ *  3. EVERY mutating Server Action / route handler calls {@link requireAdmin}
+ *     (or {@link requireSuperAdmin}) itself, which re-loads the AdminUser so a
+ *     deactivated or deleted account loses access immediately.
  */
 
-/** The session object exposed to callers. Currently identical to the payload. */
+/** The signed-in admin, as exposed to the app. */
+export interface AdminIdentity {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+}
+
+/** @deprecated Kept for older callers; prefer {@link AdminIdentity}. */
 export type Session = SessionPayload;
 
-/** Where unauthenticated requests are sent. Re-exported for callers/tests. */
 export const LOGIN_PATH = ADMIN_LOGIN_PATH;
 
 /**
- * Constant-time string comparison that does not leak length.
- *
- * `crypto.timingSafeEqual` requires equal-length buffers, so we compare the
- * SHA-256 digests of the two inputs (always 32 bytes) instead of the raw
- * strings. This keeps the email comparison timing-safe regardless of input
- * length (Requirement 9.3 — no oracle that distinguishes "wrong email" from
- * "wrong password" by timing).
+ * A real scrypt hash of a random string, used to equalize timing when the email
+ * does not match any account (so response time does not reveal which emails
+ * exist). Computed lazily once per process.
  */
-function timingSafeStringEqual(a: string, b: string): boolean {
-  const digestA = createHash("sha256").update(a).digest();
-  const digestB = createHash("sha256").update(b).digest();
-  return timingSafeEqual(digestA, digestB);
+let dummyHash: Promise<string> | undefined;
+function getDummyHash(): Promise<string> {
+  dummyHash ??= hashPassword(`timing-equalizer-${Math.random()}`);
+  return dummyHash;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function toIdentity(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+}): AdminIdentity {
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
 }
 
 /**
- * Verify submitted owner credentials against the configured environment values
- * (Requirement 9.2, 9.3).
- *
- * Compares `email` to `ADMIN_EMAIL` (timing-safe, case-insensitive on the email
- * local/domain per usual email semantics) and `password` against
- * `ADMIN_PASSWORD_HASH` (scrypt verify). To avoid a user-enumeration timing
- * oracle, the password hash is always evaluated even when the email does not
- * match, and the two checks are combined at the end.
- *
- * Returns `false` (never throws) when env config is missing or malformed.
+ * Bootstrap path for existing deployments: before any AdminUser exists, the
+ * owner credentials in `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH` are accepted once
+ * and promoted into a SUPER_ADMIN row. After that, env credentials are ignored.
+ */
+async function bootstrapFromEnv(
+  email: string,
+  password: string,
+): Promise<AdminIdentity | null> {
+  const envEmail = process.env.ADMIN_EMAIL;
+  const envHash = process.env.ADMIN_PASSWORD_HASH;
+  if (!envEmail || !envHash) return null;
+
+  const passwordMatches = await verifyPassword(password, envHash);
+  if (!passwordMatches || normalizeEmail(envEmail) !== email) return null;
+
+  const existing = await prisma.adminUser.count();
+  if (existing > 0) return null;
+
+  const user = await prisma.adminUser.create({
+    data: {
+      email,
+      passwordHash: envHash,
+      name: email.split("@")[0] ?? "Owner",
+      role: "SUPER_ADMIN",
+    },
+  });
+  return toIdentity(user);
+}
+
+/**
+ * Verify credentials. Returns the identity on success, `null` otherwise. Never
+ * reveals whether the email or the password was wrong, and always performs one
+ * scrypt verification so timing is uniform.
+ */
+export async function authenticate(
+  rawEmail: string,
+  password: string,
+): Promise<AdminIdentity | null> {
+  const email = normalizeEmail(rawEmail);
+  const user = await prisma.adminUser.findUnique({ where: { email } });
+
+  if (!user) {
+    await verifyPassword(password, await getDummyHash());
+    return bootstrapFromEnv(email, password);
+  }
+
+  const passwordMatches = await verifyPassword(password, user.passwordHash);
+  if (!passwordMatches || !user.isActive) return null;
+
+  await prisma.adminUser.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+  return toIdentity(user);
+}
+
+/**
+ * Back-compat wrapper for older callers/tests.
+ * @deprecated Use {@link authenticate}.
  */
 export async function verifyCredentials(
   email: string,
   password: string,
 ): Promise<boolean> {
-  const expectedEmail = process.env.ADMIN_EMAIL;
-  const expectedHash = process.env.ADMIN_PASSWORD_HASH;
-
-  if (!expectedEmail || !expectedHash) {
-    return false;
-  }
-
-  const emailMatches = timingSafeStringEqual(
-    email.trim().toLowerCase(),
-    expectedEmail.trim().toLowerCase(),
-  );
-
-  // Always run the (expensive) password verification so the response time does
-  // not reveal whether the email was correct.
-  const passwordMatches = await verifyPassword(password, expectedHash);
-
-  return emailMatches && passwordMatches;
-}
-
-/** Build a fresh session payload for `email` with the default TTL. */
-function buildPayload(email: string, ttlSeconds: number): SessionPayload {
-  const iat = Math.floor(Date.now() / 1000);
-  return { sub: email, iat, exp: iat + ttlSeconds };
+  return (await authenticate(email, password)) !== null;
 }
 
 /**
- * Establish a session for `email`: sign a token and set the session cookie
- * (Property 8). Cookie attributes:
- *  - `httpOnly`  — not readable by client JS.
- *  - `secure`    — only sent over HTTPS in production.
- *  - `sameSite`  — `lax`, adequate for a same-site admin.
- *  - `path`      — `/` so it is sent to every admin route.
- *  - `maxAge`    — aligned to the token TTL so cookie and token expire together.
+ * Establish a session cookie. Without "remember me" the cookie is a browser
+ * session cookie backed by a 12h token; with it, a 30-day persistent cookie.
  */
 export async function createSession(
-  email: string,
-  ttlSeconds: number = DEFAULT_SESSION_TTL_SECONDS,
+  user: AdminIdentity,
+  { remember = false }: { remember?: boolean } = {},
 ): Promise<void> {
-  const payload = buildPayload(email, ttlSeconds);
-  const token = await createSessionToken(payload);
+  const ttl = remember ? REMEMBER_ME_TTL_SECONDS : DEFAULT_SESSION_TTL_SECONDS;
+  const iat = Math.floor(Date.now() / 1000);
+  const token = await createSessionToken({
+    sub: user.email,
+    uid: user.id,
+    role: user.role,
+    iat,
+    exp: iat + ttl,
+  });
+
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: ttlSeconds,
+    ...(remember ? { maxAge: ttl } : {}),
   });
 }
 
-/**
- * Clear the session cookie, invalidating access on subsequent requests
- * (Requirement 9.4; Property 8).
- */
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
-/**
- * Read and verify the current session, or return `null` when absent/invalid
- * (Requirement 9.1). Used by guarded reads that want to branch rather than
- * redirect.
- */
-export async function getSession(): Promise<Session | null> {
+/** The verified token payload, or `null`. Does NOT hit the database. */
+export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  return verifySessionToken(token);
+  return verifySessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
 }
 
 /**
- * Return the current session or redirect to the login page (Property 7).
- *
- * Used by admin Server Components/pages and re-used by every mutating admin
- * Server Action for defense-in-depth. `redirect` throws internally (a
- * `NEXT_REDIRECT` control-flow error), so this function does not return when
- * unauthenticated.
+ * The signed-in, still-active admin, or `null`. Memoized per request so the
+ * layout and every nested component share one lookup.
  */
-export async function requireSession(): Promise<Session> {
-  const session = await getSession();
-  if (!session) {
-    redirect(LOGIN_PATH);
-  }
-  return session;
+export const getCurrentAdmin = cache(
+  async (): Promise<AdminIdentity | null> => {
+    const session = await getSession();
+    if (!session) return null;
+
+    const user = await prisma.adminUser.findUnique({
+      where: { id: session.uid },
+      select: { id: true, email: true, name: true, role: true, isActive: true },
+    });
+    if (!user || !user.isActive) return null;
+    return toIdentity(user);
+  },
+);
+
+/** The current admin, or redirect to the login page. */
+export async function requireAdmin(): Promise<AdminIdentity> {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect(LOGIN_PATH);
+  return admin;
 }
+
+/** Like {@link requireAdmin} but also requires the SUPER_ADMIN role. */
+export async function requireSuperAdmin(): Promise<AdminIdentity> {
+  const admin = await requireAdmin();
+  if (admin.role !== "SUPER_ADMIN") {
+    throw new Error("Only a super admin can do this.");
+  }
+  return admin;
+}
+
+/** @deprecated Alias kept for existing actions; prefer {@link requireAdmin}. */
+export const requireSession = requireAdmin;

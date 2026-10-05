@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Hero } from "./Hero";
 import { HERO_CONTENT } from "./config";
-import { TEAM } from "@/features/studio/config";
+import type { TeamMemberView } from "@/types";
+
+const TEAM: TeamMemberView[] = [
+  { id: "a", name: "Ada Lovelace", slug: "ada", role: "Product & Engineering", shortBio: "Builds it.", responsibilities: [], skills: [], isFeatured: true, initials: "AL" },
+  { id: "b", name: "Grace Hopper", slug: "grace", role: "Systems & Operations", shortBio: "Keeps it running.", responsibilities: [], skills: [], isFeatured: true, initials: "GH" },
+];
 
 describe("Hero", () => {
   it("renders the studio statement as the page h1", () => {
@@ -29,12 +34,18 @@ describe("Hero", () => {
   });
 
   it("presents both team members in the duo composition", () => {
-    render(<Hero />);
+    render(<Hero members={TEAM} />);
     for (const member of TEAM) {
       expect(
-        screen.getByLabelText(`${member.name} — ${member.discipline}`),
+        screen.getByLabelText(`${member.name} — ${member.role}`),
       ).toBeInTheDocument();
     }
+  });
+
+  it("renders a single member without the pairing joint", () => {
+    render(<Hero members={TEAM.slice(0, 1)} />);
+    expect(screen.getByLabelText(`${TEAM[0]!.name} — ${TEAM[0]!.role}`)).toBeInTheDocument();
+    expect(screen.queryByLabelText(`${TEAM[1]!.name} — ${TEAM[1]!.role}`)).not.toBeInTheDocument();
   });
 
   it("exposes the #top anchor target for the navbar brand link", () => {

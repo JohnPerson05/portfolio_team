@@ -3,62 +3,86 @@ import { SkillCategory } from "@prisma/client";
 
 import {
   experiences,
-  posts,
+  processSteps,
   projects,
+  services,
   skills,
-  testimonials,
+  teamMembers,
 } from "../../prisma/seed-data";
+import { SETTING_DEFINITIONS } from "../server/settings/registry";
+import { HOMEPAGE_SECTION_DEFAULTS, NAVIGATION_DEFAULTS } from "../server/content/defaults";
 
-// These tests assert the invariants the seed dataset must uphold so that the
-// downstream feature sections (and their own tests) have data that exercises
-// every branch. They run against the exported data only — no database needed.
+// Invariants for the fresh-database seed. They run against the exported data
+// only — no database needed.
 
 describe("seed projects", () => {
-  it("provides between 5 and 6 projects total", () => {
-    expect(projects.length).toBeGreaterThanOrEqual(5);
-    expect(projects.length).toBeLessThanOrEqual(6);
-  });
-
-  it("has between 3 and 6 featured projects (Requirement 10.5 / Property 1)", () => {
-    const featured = projects.filter((p) => p.featured === true);
-    expect(featured.length).toBeGreaterThanOrEqual(3);
-    expect(featured.length).toBeLessThanOrEqual(6);
-  });
-
-  it("includes at least one non-featured project", () => {
-    const nonFeatured = projects.filter((p) => !p.featured);
-    expect(nonFeatured.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("gives featured projects distinct order values", () => {
-    const orders = projects
-      .filter((p) => p.featured === true)
-      .map((p) => p.order);
-    expect(new Set(orders).size).toBe(orders.length);
-  });
-
-  it("uses unique slugs across all projects", () => {
+  it("contains the live portfolio's projects with unique slugs", () => {
+    expect(projects.length).toBeGreaterThanOrEqual(3);
     const slugs = projects.map((p) => p.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
+    expect(slugs).toEqual(
+      expect.arrayContaining([
+        "petcury-veterinary-clinic-management-system",
+        "barangay-rosario-digital-portal",
+        "globalmeet-live-webcasting-audience-engagement",
+      ]),
+    );
   });
 
-  it("does not publish placeholder external project links", () => {
+  it("never seeds template placeholder links", () => {
     for (const project of projects) {
-      expect(project.githubUrl).toBeNull();
-      expect(project.liveUrl).toBeNull();
+      expect(project.githubUrl ?? "").not.toMatch(/github\.com\/example\//);
+      expect(project.projectUrl ?? "").not.toMatch(/example\.com/);
     }
   });
 
-  it("populates the narrative fields for every project", () => {
-    for (const p of projects) {
-      expect(p.title.length).toBeGreaterThan(0);
-      expect(p.summary.length).toBeGreaterThan(0);
-      expect(p.problem.length).toBeGreaterThan(0);
-      expect(p.solution.length).toBeGreaterThan(0);
-      expect(p.impact.length).toBeGreaterThan(0);
-      const technologies = p.technologies as string[] | undefined;
-      expect(technologies && technologies.length).toBeGreaterThan(0);
+  it("gives every published project the full story (publishable)", () => {
+    for (const p of projects.filter((x) => x.status === "PUBLISHED")) {
+      expect(p.shortDescription.trim()).not.toBe("");
+      expect(p.problem.trim()).not.toBe("");
+      expect(p.solution.trim()).not.toBe("");
+      expect(p.result.trim()).not.toBe("");
+      expect(p.technologies.length).toBeGreaterThan(0);
     }
+  });
+
+  it("uses https images only", () => {
+    for (const p of projects) for (const url of p.images) expect(url).toMatch(/^https:\/\//);
+  });
+});
+
+describe("seed team", () => {
+  it("leaves any member still marked [EDIT ME] unpublished", () => {
+    for (const member of teamMembers) {
+      if (member.name.includes("[EDIT ME]")) expect(member.isPublished).toBe(false);
+    }
+    expect(teamMembers.some((m) => m.isPublished)).toBe(true);
+  });
+});
+
+describe("seed services & process", () => {
+  it("has unique service slugs and contiguous process steps", () => {
+    const slugs = services.map((s) => s.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(processSteps.length).toBeGreaterThan(0);
+    for (const step of processSteps) expect(step.description.trim()).not.toBe("");
+  });
+});
+
+describe("site structure defaults", () => {
+  it("defines every setting once with a group and label", () => {
+    const keys = SETTING_DEFINITIONS.map((d) => d.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const def of SETTING_DEFINITIONS) {
+      expect(def.label).not.toBe("");
+      expect(def.group).not.toBe("");
+    }
+  });
+
+  it("has unique homepage section keys and valid nav links", () => {
+    const keys = HOMEPAGE_SECTION_DEFAULTS.map((s) => s.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const item of NAVIGATION_DEFAULTS) expect(item.href.startsWith("/")).toBe(true);
   });
 });
 
@@ -148,14 +172,3 @@ describe("seed experience", () => {
   });
 });
 
-describe("seed testimonials", () => {
-  it("does not publish invented professional endorsements", () => {
-    expect(testimonials).toEqual([]);
-  });
-});
-
-describe("seed posts", () => {
-  it("does not publish writing that has not been supplied by the owner", () => {
-    expect(posts).toEqual([]);
-  });
-});

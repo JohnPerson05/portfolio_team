@@ -24,6 +24,8 @@ export { BackToTop } from "./BackToTop";
 export type { BackToTopProps } from "./BackToTop";
 
 export { BrandLogo } from "./BrandLogo";
+export { SiteChromeProvider, useSiteChrome } from "./SiteChrome";
+export type { SiteChrome } from "./SiteChrome";
 export type { BrandLogoProps } from "./BrandLogo";
 
 export {

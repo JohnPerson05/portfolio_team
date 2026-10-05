@@ -1,16 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Tests for server-side auth helpers (Requirement 9; Properties 7 & 8).
- *
- * `node:crypto` (password) and Web Crypto (token signing) run for real; only
- * `next/headers` cookies() and `next/navigation` redirect() are mocked so the
- * helpers can be exercised without a request/SSR context.
+ * Server-side auth helpers. Password hashing and token signing run for real;
+ * `next/headers`, `next/navigation`, and Prisma are mocked (an in-memory
+ * AdminUser table) so the helpers run without a request or database.
  */
 
-// --- Mock next/navigation redirect ---------------------------------------
-// redirect() throws in Next (NEXT_REDIRECT control flow); emulate that so
-// requireSession() stops executing on the unauthenticated path.
 class RedirectError extends Error {
   constructor(public readonly destination: string) {
     super(`NEXT_REDIRECT:${destination}`);
@@ -24,148 +19,177 @@ vi.mock("next/navigation", () => ({
   redirect: (destination: string) => redirectMock(destination),
 }));
 
-// --- Mock next/headers cookies() with a stateful in-memory store ----------
-interface StoredCookie {
-  name: string;
-  value: string;
-}
-const cookieStore = new Map<string, StoredCookie>();
-const cookieSet = vi.fn((name: string, value: string) => {
+const cookieStore = new Map<string, { name: string; value: string }>();
+const cookieSet = vi.fn((name: string, value: string, _attrs?: Record<string, unknown>) => {
   cookieStore.set(name, { name, value });
 });
-const cookieDelete = vi.fn((name: string) => {
-  cookieStore.delete(name);
-});
-const cookieGet = vi.fn((name: string) => cookieStore.get(name));
+const cookieDelete = vi.fn((name: string) => cookieStore.delete(name));
 vi.mock("next/headers", () => ({
   __esModule: true,
   cookies: vi.fn(async () => ({
-    get: cookieGet,
+    get: (name: string) => cookieStore.get(name),
     set: cookieSet,
     delete: cookieDelete,
   })),
 }));
 
+interface UserRow {
+  id: string;
+  email: string;
+  passwordHash: string;
+  name: string;
+  role: "SUPER_ADMIN" | "EDITOR";
+  isActive: boolean;
+  lastLoginAt: Date | null;
+}
+const users: UserRow[] = [];
+vi.mock("@/lib/prisma", () => {
+  const client = {
+    adminUser: {
+      findUnique: vi.fn(async ({ where }: { where: { id?: string; email?: string } }) =>
+        users.find((u) => (where.id ? u.id === where.id : u.email === where.email)) ?? null,
+      ),
+      count: vi.fn(async () => users.length),
+      create: vi.fn(async ({ data }: { data: Omit<UserRow, "id" | "isActive" | "lastLoginAt"> }) => {
+        const row = { id: `u${users.length + 1}`, isActive: true, lastLoginAt: null, ...data } as UserRow;
+        users.push(row);
+        return row;
+      }),
+      update: vi.fn(async ({ where, data }: { where: { id: string }; data: Partial<UserRow> }) => {
+        const row = users.find((u) => u.id === where.id)!;
+        Object.assign(row, data);
+        return row;
+      }),
+    },
+  };
+  return { __esModule: true, default: client, prisma: client };
+});
+
 import { SESSION_COOKIE_NAME } from "@/lib/session-token";
 import { hashPassword } from "@/lib/password";
 import {
+  authenticate,
   createSession,
   destroySession,
+  getCurrentAdmin,
   getSession,
   LOGIN_PATH,
-  requireSession,
-  verifyCredentials,
+  requireAdmin,
+  requireSuperAdmin,
 } from "./auth";
 
-const SECRET = "auth-test-secret-value-please-ignore";
-const OWNER_EMAIL = "owner@example.com";
-const OWNER_PASSWORD = "an-elite-password-123";
+const PASSWORD = "correct-horse-battery-staple";
+let hash: string;
 
 beforeEach(async () => {
   vi.clearAllMocks();
   cookieStore.clear();
-  process.env.AUTH_SECRET = SECRET;
-  process.env.ADMIN_EMAIL = OWNER_EMAIL;
-  process.env.ADMIN_PASSWORD_HASH = await hashPassword(OWNER_PASSWORD);
-});
-
-afterEach(() => {
-  delete process.env.AUTH_SECRET;
+  users.length = 0;
+  process.env.AUTH_SECRET = "auth-test-secret-value-please-ignore";
   delete process.env.ADMIN_EMAIL;
   delete process.env.ADMIN_PASSWORD_HASH;
+  hash ??= await hashPassword(PASSWORD);
 });
 
-describe("verifyCredentials (Requirement 9.2, 9.3)", () => {
-  it("accepts the correct email + password", async () => {
-    expect(await verifyCredentials(OWNER_EMAIL, OWNER_PASSWORD)).toBe(true);
+async function addUser(overrides: Partial<UserRow> = {}): Promise<UserRow> {
+  const row: UserRow = {
+    id: `u${users.length + 1}`,
+    email: "owner@example.com",
+    passwordHash: hash,
+    name: "Owner",
+    role: "SUPER_ADMIN",
+    isActive: true,
+    lastLoginAt: null,
+    ...overrides,
+  };
+  users.push(row);
+  return row;
+}
+
+describe("authenticate", () => {
+  it("accepts the right password (email is case-insensitive) and records the login", async () => {
+    await addUser();
+    const admin = await authenticate("  Owner@Example.com ", PASSWORD);
+    expect(admin).toMatchObject({ id: "u1", role: "SUPER_ADMIN" });
+    expect(users[0]?.lastLoginAt).toBeInstanceOf(Date);
   });
 
-  it("accepts the email case-insensitively", async () => {
-    expect(await verifyCredentials("OWNER@Example.com", OWNER_PASSWORD)).toBe(
-      true,
-    );
+  it("rejects a wrong password, an unknown email, and a deactivated account", async () => {
+    await addUser();
+    await addUser({ id: "u2", email: "gone@example.com", isActive: false });
+    expect(await authenticate("owner@example.com", "wrong-password")).toBeNull();
+    expect(await authenticate("nobody@example.com", PASSWORD)).toBeNull();
+    expect(await authenticate("gone@example.com", PASSWORD)).toBeNull();
   });
 
-  it("rejects a wrong password", async () => {
-    expect(await verifyCredentials(OWNER_EMAIL, "wrong-password")).toBe(false);
+  it("bootstraps the first super admin from env credentials when no admin exists", async () => {
+    process.env.ADMIN_EMAIL = "owner@example.com";
+    process.env.ADMIN_PASSWORD_HASH = hash;
+    const admin = await authenticate("owner@example.com", PASSWORD);
+    expect(admin?.role).toBe("SUPER_ADMIN");
+    expect(users).toHaveLength(1);
   });
 
-  it("rejects a wrong email", async () => {
-    expect(await verifyCredentials("intruder@evil.example", OWNER_PASSWORD)).toBe(
-      false,
-    );
-  });
-
-  it("rejects when env config is missing", async () => {
-    delete process.env.ADMIN_EMAIL;
-    expect(await verifyCredentials(OWNER_EMAIL, OWNER_PASSWORD)).toBe(false);
+  it("ignores env credentials once an admin exists", async () => {
+    await addUser({ email: "someone@example.com" });
+    process.env.ADMIN_EMAIL = "owner@example.com";
+    process.env.ADMIN_PASSWORD_HASH = hash;
+    expect(await authenticate("owner@example.com", PASSWORD)).toBeNull();
+    expect(users).toHaveLength(1);
   });
 });
 
-describe("createSession / getSession / destroySession (Property 8)", () => {
-  it("getSession returns null when no cookie is present", async () => {
-    expect(await getSession()).toBeNull();
-  });
+describe("sessions", () => {
+  it("sets a hardened cookie that resolves back to the admin", async () => {
+    const user = await addUser();
+    await createSession({ id: user.id, email: user.email, name: user.name, role: user.role });
 
-  it("createSession sets a cookie that getSession can read back", async () => {
-    await createSession(OWNER_EMAIL);
-
-    expect(cookieSet).toHaveBeenCalledTimes(1);
-    const [name, , attributes] = cookieSet.mock.calls[0] as unknown as [
-      string,
-      string,
-      Record<string, unknown>,
-    ];
+    const [name, , attributes] = cookieSet.mock.calls[0] as unknown as [string, string, Record<string, unknown>];
     expect(name).toBe(SESSION_COOKIE_NAME);
-    // Cookie hardening attributes (Requirement 9).
-    expect(attributes).toMatchObject({
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
-    expect(typeof attributes.maxAge).toBe("number");
+    expect(attributes).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
+    expect(attributes.maxAge).toBeUndefined(); // browser-session cookie without "remember me"
 
-    const session = await getSession();
-    expect(session?.sub).toBe(OWNER_EMAIL);
+    expect((await getSession())?.uid).toBe(user.id);
+    expect((await getCurrentAdmin())?.email).toBe(user.email);
   });
 
-  it("getSession returns null for an invalid cookie value", async () => {
-    cookieStore.set(SESSION_COOKIE_NAME, {
-      name: SESSION_COOKIE_NAME,
-      value: "tampered.token",
-    });
-    expect(await getSession()).toBeNull();
+  it("remember me makes the cookie persistent", async () => {
+    const user = await addUser();
+    await createSession({ id: user.id, email: user.email, name: user.name, role: user.role }, { remember: true });
+    const attributes = cookieSet.mock.calls[0]?.[2] as Record<string, unknown>;
+    expect(attributes.maxAge).toBe(60 * 60 * 24 * 30);
   });
 
-  it("destroySession clears the cookie so getSession returns null", async () => {
-    await createSession(OWNER_EMAIL);
-    expect(await getSession()).not.toBeNull();
+  it("a deactivated admin loses access even with a valid cookie", async () => {
+    const user = await addUser();
+    await createSession({ id: user.id, email: user.email, name: user.name, role: user.role });
+    user.isActive = false;
+    expect(await getCurrentAdmin()).toBeNull();
+  });
 
+  it("destroySession clears the cookie", async () => {
+    const user = await addUser();
+    await createSession({ id: user.id, email: user.email, name: user.name, role: user.role });
     await destroySession();
     expect(cookieDelete).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
     expect(await getSession()).toBeNull();
   });
+
+  it("rejects a tampered cookie", async () => {
+    cookieStore.set(SESSION_COOKIE_NAME, { name: SESSION_COOKIE_NAME, value: "tampered.token" });
+    expect(await getSession()).toBeNull();
+  });
 });
 
-describe("requireSession (Property 7)", () => {
-  it("returns the session when a valid cookie is present", async () => {
-    await createSession(OWNER_EMAIL);
-    const session = await requireSession();
-    expect(session.sub).toBe(OWNER_EMAIL);
-    expect(redirectMock).not.toHaveBeenCalled();
-  });
-
-  it("redirects to the login page when no session exists", async () => {
-    await expect(requireSession()).rejects.toBeInstanceOf(RedirectError);
+describe("guards", () => {
+  it("requireAdmin redirects to the login page without a session", async () => {
+    await expect(requireAdmin()).rejects.toBeInstanceOf(RedirectError);
     expect(redirectMock).toHaveBeenCalledWith(LOGIN_PATH);
   });
 
-  it("redirects when the session cookie is invalid", async () => {
-    cookieStore.set(SESSION_COOKIE_NAME, {
-      name: SESSION_COOKIE_NAME,
-      value: "garbage",
-    });
-    await expect(requireSession()).rejects.toBeInstanceOf(RedirectError);
-    expect(redirectMock).toHaveBeenCalledWith(LOGIN_PATH);
+  it("requireSuperAdmin refuses editors", async () => {
+    const user = await addUser({ role: "EDITOR" });
+    await createSession({ id: user.id, email: user.email, name: user.name, role: user.role });
+    await expect(requireSuperAdmin()).rejects.toThrow(/super admin/);
   });
 });

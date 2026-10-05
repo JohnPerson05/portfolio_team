@@ -2,5 +2,5 @@
 
 export { TrustStats } from "./TrustStats";
 export type { TrustStatsProps } from "./TrustStats";
-export { TRUST_STATS } from "./config";
+export { TRUST_STATS, toTrustStats } from "./config";
 export type { TrustStat } from "./config";

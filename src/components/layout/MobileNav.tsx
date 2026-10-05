@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS, PRIMARY_CTA } from "./navigation";
+import { useSiteChrome } from "./SiteChrome";
 
 export interface MobileNavProps {
   className?: string;
@@ -29,6 +29,7 @@ export interface MobileNavProps {
  * a >=44px touch target.
  */
 export function MobileNav({ className }: MobileNavProps) {
+  const { headerLinks, cta } = useSiteChrome();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -115,7 +116,7 @@ export function MobileNav({ className }: MobileNavProps) {
           )}
         >
           <ul className="flex flex-col gap-space-1">
-            {NAV_LINKS.map((link) => (
+            {headerLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
@@ -133,13 +134,13 @@ export function MobileNav({ className }: MobileNavProps) {
           </ul>
           <div className="mt-space-2 border-t border-hairline pt-space-2">
             <Button
-              href={PRIMARY_CTA.href}
+              href={cta.href}
               variant="primary"
               size="sm"
               className="w-full"
               onClick={close}
             >
-              {PRIMARY_CTA.label}
+              {cta.label}
             </Button>
           </div>
         </div>

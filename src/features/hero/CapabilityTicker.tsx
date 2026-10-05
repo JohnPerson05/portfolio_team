@@ -1,17 +1,14 @@
-import { OUTCOME_TICKER } from "@/features/studio/config";
-
 /**
  * A slow, looping strip of the kinds of things we build — written as business
  * outcomes, not technologies.
  */
-export function CapabilityTicker() {
-  const repeated = [...OUTCOME_TICKER, ...OUTCOME_TICKER];
+export function CapabilityTicker({ items }: { items: readonly string[] }) {
+  if (items.length === 0) return null;
+  const repeated = [...items, ...items];
 
   return (
-    <div
-      aria-label={`What we build: ${OUTCOME_TICKER.join(", ")}`}
-      className="overflow-hidden border-y border-hairline bg-white/[0.015] py-space-2"
-    >
+    <div className="overflow-hidden border-y border-hairline bg-white/[0.015] py-space-2">
+      <p className="sr-only">What we build: {items.join(", ")}</p>
       <div aria-hidden="true" className="ticker-track flex w-max items-center">
         {repeated.map((item, index) => (
           <div

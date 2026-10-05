@@ -3,6 +3,7 @@
 import { EventType } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
 import type { AnalyticsSummary, RecentActivity, TopProject } from "@/types";
 
 /**
@@ -70,6 +71,8 @@ export async function recordEvent(input: RecordEventInput): Promise<void> {
  *  - Recent activity via a bounded `findMany` ordered newest-first.
  */
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
+  // Exported Server Actions are publicly callable endpoints — guard reads too.
+  await requireAdmin();
   const [countsByType, topProjects, recentEvents] = await Promise.all([
     prisma.analyticsEvent.groupBy({
       by: ["type"],

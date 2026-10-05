@@ -6,7 +6,7 @@ import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./BrandLogo";
 import { MobileNav } from "./MobileNav";
-import { BRAND_NAME, NAV_LINKS, PRIMARY_CTA } from "./navigation";
+import { useSiteChrome } from "./SiteChrome";
 
 export interface NavbarProps {
   className?: string;
@@ -32,6 +32,7 @@ export interface NavbarProps {
  * translucency/border treatment and owns the mobile drawer's open state.
  */
 export function Navbar({ className }: NavbarProps) {
+  const { studioName, headerLinks, cta } = useSiteChrome();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -57,22 +58,23 @@ export function Navbar({ className }: NavbarProps) {
       >
         <Link
           href="/"
-          aria-label={BRAND_NAME}
+          aria-label={studioName}
           className={cn(
             "inline-flex shrink-0 items-center rounded-md",
             "transition-opacity hover:opacity-90",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
           )}
         >
-          <BrandLogo size={40} priority className="h-10 w-10" />
+          {/* Decorative: the link is already named by aria-label. */}
+          <BrandLogo size={40} priority className="h-10 w-10" alt="" />
           <span className="ml-space-2 hidden font-display text-body font-semibold tracking-tight text-text lg:inline">
-            {BRAND_NAME}
+            {studioName}
           </span>
         </Link>
 
         {/* Desktop inline links — hidden on small screens. */}
         <ul className="hidden items-center gap-space-1 md:flex">
-          {NAV_LINKS.map((link) => (
+          {headerLinks.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
@@ -90,8 +92,8 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Desktop CTA — hidden on small screens. */}
         <div className="hidden md:block">
-          <Button href={PRIMARY_CTA.href} variant="primary" size="sm">
-            {PRIMARY_CTA.label}
+          <Button href={cta.href} variant="primary" size="sm">
+            {cta.label}
           </Button>
         </div>
 

@@ -4,8 +4,7 @@
  */
 export * from "./shared";
 export * from "./contact";
-export * from "./project";
+export * from "./cms";
 export * from "./post";
 export * from "./skill";
 export * from "./experience";
-export * from "./testimonial";

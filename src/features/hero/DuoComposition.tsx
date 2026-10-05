@@ -2,31 +2,26 @@
 
 import Image from "next/image";
 import { useState, type PointerEvent } from "react";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { cn } from "@/lib/utils";
-import { HERO, TEAM, type TeamMember } from "@/features/studio/config";
+import { imageSource } from "@/lib/images";
+import type { TeamMemberView } from "@/types";
 
 const SPRING = { stiffness: 140, damping: 18, mass: 0.6 };
 
 /** Designed fallback for a team member without a portrait yet. */
-function Monogram({ member }: { member: TeamMember }) {
+function firstName(name: string): string {
+  return name.split(/\s+/)[0] ?? name;
+}
+
+function Monogram({ member }: { member: TeamMemberView }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-space-2 bg-[radial-gradient(circle_at_30%_20%,rgba(114,215,255,0.18),transparent_55%),radial-gradient(circle_at_80%_90%,rgba(212,175,55,0.16),transparent_50%)]">
       <div className="programmatic-grid absolute inset-0 opacity-40" />
       <span className="relative font-display text-[clamp(3rem,8vw,5rem)] font-semibold leading-none text-text/90">
         {member.initials}
       </span>
-      {member.isPlaceholder ? (
-        <span className="relative rounded-full border border-dashed border-white/25 px-space-2 py-1 font-mono text-[0.58rem] uppercase tracking-[0.18em] text-muted">
-          Portrait coming soon
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -39,7 +34,7 @@ function PersonCard({
   onBlur,
   className,
 }: {
-  member: TeamMember;
+  member: TeamMemberView;
   active: boolean;
   dimmed: boolean;
   onFocus: () => void;
@@ -53,7 +48,7 @@ function PersonCard({
       onMouseLeave={onBlur}
       onFocus={onFocus}
       onBlur={onBlur}
-      aria-label={`${member.name} — ${member.discipline}`}
+      aria-label={`${member.name} — ${member.role}`}
       className={cn(
         "group relative overflow-hidden rounded-2xl border bg-[#090b0e] shadow-2xl shadow-black/60",
         "transition-[border-color,opacity,transform] duration-500 ease-out",
@@ -63,9 +58,9 @@ function PersonCard({
       )}
     >
       <div className="relative aspect-[3/4] w-full">
-        {member.photo ? (
+        {member.profileImage ? (
           <Image
-            src={member.photo}
+            {...imageSource(member.profileImage)}
             alt={member.name}
             fill
             priority
@@ -82,18 +77,20 @@ function PersonCard({
       </div>
       <figcaption className="absolute inset-x-0 bottom-0 p-space-2 sm:p-space-3">
         <p className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-accent">
-          {member.discipline}
+          {member.role}
         </p>
         <p className="mt-1 font-display text-body font-semibold leading-tight text-text">
-          {member.isPlaceholder ? "Your second builder" : member.firstName}
+          {firstName(member.name)}
         </p>
         <p
           className={cn(
             "mt-1 text-pretty text-[0.78rem] leading-snug text-muted transition-[max-height,opacity] duration-500",
-            active ? "max-h-20 opacity-100" : "max-h-0 opacity-0 sm:max-h-20 sm:opacity-100",
+            active
+              ? "max-h-20 opacity-100"
+              : "max-h-0 opacity-0 sm:max-h-20 sm:opacity-100",
           )}
         >
-          {member.promise}
+          {member.shortBio}
         </p>
       </figcaption>
     </figure>
@@ -108,9 +105,15 @@ function PersonCard({
  * the other recedes. Floating outcome chips orbit the pair. Fully static (but
  * identical in layout) when the visitor prefers reduced motion.
  */
-export function DuoComposition() {
+export function DuoComposition({
+  members,
+  outcomes,
+}: {
+  members: readonly TeamMemberView[];
+  outcomes: readonly string[];
+}) {
   const reducedMotion = useReducedMotion();
-  const [activeId, setActiveId] = useState<TeamMember["id"] | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const px = useMotionValue(0);
   const py = useMotionValue(0);
@@ -136,7 +139,9 @@ export function DuoComposition() {
     py.set(0);
   }
 
-  const [first, second] = TEAM;
+  const [first, second] = members;
+  if (!first) return null;
+  const solo = !second;
 
   return (
     <div
@@ -152,7 +157,10 @@ export function DuoComposition() {
       />
 
       <motion.div
-        className="relative grid grid-cols-2 items-start gap-space-2 sm:gap-space-3"
+        className={cn(
+          "relative grid items-start gap-space-2 sm:gap-space-3",
+          solo ? "mx-auto max-w-[17rem] grid-cols-1" : "grid-cols-2",
+        )}
         style={
           reducedMotion
             ? undefined
@@ -161,20 +169,18 @@ export function DuoComposition() {
       >
         <motion.div
           style={reducedMotion ? undefined : { x: backX }}
-          className="pt-space-8"
+          className={solo ? undefined : "pt-space-8"}
         >
-          {first ? (
-            <PersonCard
-              member={first}
-              active={activeId === first.id}
-              dimmed={activeId !== null && activeId !== first.id}
-              onFocus={() => setActiveId(first.id)}
-              onBlur={() => setActiveId(null)}
-            />
-          ) : null}
+          <PersonCard
+            member={first}
+            active={activeId === first.id}
+            dimmed={activeId !== null && activeId !== first.id}
+            onFocus={() => setActiveId(first.id)}
+            onBlur={() => setActiveId(null)}
+          />
         </motion.div>
-        <motion.div style={reducedMotion ? undefined : { x: frontX }}>
-          {second ? (
+        {second ? (
+          <motion.div style={reducedMotion ? undefined : { x: frontX }}>
             <PersonCard
               member={second}
               active={activeId === second.id}
@@ -182,16 +188,18 @@ export function DuoComposition() {
               onFocus={() => setActiveId(second.id)}
               onBlur={() => setActiveId(null)}
             />
-          ) : null}
-        </motion.div>
+          </motion.div>
+        ) : null}
 
         {/* The "+" joint — two people, one team */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent/50 bg-bg/90 font-display text-h3 text-accent shadow-[0_0_40px_-6px_rgba(212,175,55,0.55)] backdrop-blur"
-        >
-          +
-        </div>
+        {solo ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent/50 bg-bg/90 font-display text-h3 text-accent shadow-[0_0_40px_-6px_rgba(212,175,55,0.55)] backdrop-blur"
+          >
+            +
+          </div>
+        )}
       </motion.div>
 
       {/* Floating outcome chips */}
@@ -200,7 +208,7 @@ export function DuoComposition() {
         style={reducedMotion ? undefined : { x: chipsX, y: chipsY }}
         className="pointer-events-none absolute inset-0 hidden sm:block"
       >
-        {HERO.outcomes.map((outcome, index) => {
+        {outcomes.slice(0, 4).map((outcome, index) => {
           const positions = [
             "-left-8 top-2",
             "-right-6 top-[38%]",

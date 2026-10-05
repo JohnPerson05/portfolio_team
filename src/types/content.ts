@@ -1,5 +1,4 @@
 import type {
-  Project,
   Post,
   Skill,
   SkillCategory,
@@ -7,7 +6,6 @@ import type {
   Testimonial,
   ContactSubmission,
 } from "@prisma/client";
-import { decodeProjectImages } from "@/features/projects/media";
 
 /**
  * Serializable view DTOs for content rendered by public Server Components.
@@ -18,23 +16,115 @@ import { decodeProjectImages } from "@/features/projects/media";
  * optionals, keeping client islands lightweight and typed (Requirement 17.2).
  */
 
-/** A featured project card as rendered on the homepage. */
+/** A gallery item attached to a project. */
+export interface ProjectMediaView {
+  id: string;
+  mediaType: "IMAGE" | "VIDEO" | "GIF" | "EMBED";
+  url: string;
+  thumbnailUrl?: string;
+  title?: string;
+  caption?: string;
+  altText?: string;
+}
+
+/** A technology tag as shown (quietly) on a project. */
+export interface TechnologyTagView {
+  name: string;
+  slug: string;
+  icon?: string;
+}
+
+/** A project as rendered by the public site and the admin preview. */
 export interface ProjectView {
   id: string;
   title: string;
   slug: string;
-  summary: string;
+  category?: string;
+  tagline?: string;
+  shortDescription: string;
+  description?: string;
   problem: string;
   solution: string;
-  impact: string;
-  technologies: string[];
-  /** Ordered project gallery; the first image is used as the card cover. */
-  imageUrls?: string[];
-  thumbnailUrl?: string;
+  result: string;
+  /** Card/listing image. Falls back to the first gallery image. */
+  coverImage?: string;
+  /** Large image at the top of the case study. Falls back to the cover. */
+  heroImage?: string;
+  projectUrl?: string;
   githubUrl?: string;
-  liveUrl?: string;
+  otherUrl?: string;
+  otherUrlLabel?: string;
+  clientName?: string;
+  year?: number;
   featured: boolean;
-  order: number;
+  displayOrder: number;
+  seoTitle?: string;
+  seoDescription?: string;
+  ogImage?: string;
+  /** ISO-8601, or null while unpublished. */
+  publishedAt: string | null;
+  updatedAt: string;
+  media: ProjectMediaView[];
+  technologies: TechnologyTagView[];
+}
+
+/** A team member as rendered on the public site. */
+export interface TeamMemberView {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  shortBio?: string;
+  bio?: string;
+  profileImage?: string;
+  location?: string;
+  email?: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+  responsibilities: string[];
+  skills: string[];
+  experience?: string;
+  /** Featured members lead the homepage hero. */
+  isFeatured: boolean;
+  /** Monogram shown when there is no profile image. */
+  initials: string;
+}
+
+export interface ServiceView {
+  id: string;
+  title: string;
+  slug: string;
+  shortDescription: string;
+  description?: string;
+  icon?: string;
+  image?: string;
+  leadLabel?: string;
+  /** Zero-padded display number, e.g. "01". */
+  number: string;
+}
+
+export interface ProcessStepView {
+  id: string;
+  stepNumber: number;
+  title: string;
+  headline?: string;
+  description: string;
+  visual?: string;
+}
+
+/** Homepage section configuration editable in the CMS. */
+export interface HomepageSectionView {
+  key: string;
+  label: string;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+}
+
+export interface NavLinkView {
+  label: string;
+  href: string;
 }
 
 /** A published blog post as rendered in previews, listings, and articles. */
@@ -99,6 +189,8 @@ export interface TestimonialView {
   avatarUrl?: string;
   /** Company logo URL; omitted when not provided. */
   logoUrl?: string;
+  /** The (published) project this testimonial is about, if any. */
+  project?: { title: string; slug: string };
   order: number;
 }
 
@@ -138,28 +230,6 @@ export function toSkillView(skill: Skill): SkillView {
   };
 }
 
-/** Map a Prisma `Project` row to its serializable view DTO. */
-export function toProjectView(project: Project): ProjectView {
-  const imageUrls = decodeProjectImages(project.thumbnailUrl);
-
-  return {
-    id: project.id,
-    title: project.title,
-    slug: project.slug,
-    summary: project.summary,
-    problem: project.problem,
-    solution: project.solution,
-    impact: project.impact,
-    technologies: project.technologies,
-    imageUrls,
-    thumbnailUrl: imageUrls[0],
-    githubUrl: project.githubUrl ?? undefined,
-    liveUrl: project.liveUrl ?? undefined,
-    featured: project.featured,
-    order: project.order,
-  };
-}
-
 /** Map a Prisma `Post` row to its serializable view DTO. */
 export function toPostView(post: Post): PostView {
   return {
@@ -188,16 +258,21 @@ export function toExperienceView(experience: Experience): ExperienceView {
 }
 
 /** Map a Prisma `Testimonial` row to its serializable view DTO. */
-export function toTestimonialView(testimonial: Testimonial): TestimonialView {
+export function toTestimonialView(
+  testimonial: Testimonial & {
+    project?: { title: string; slug: string } | null;
+  },
+): TestimonialView {
   return {
     id: testimonial.id,
     quote: testimonial.quote,
-    author: testimonial.author,
+    author: testimonial.name,
     role: testimonial.role,
     company: testimonial.company ?? undefined,
-    avatarUrl: testimonial.avatarUrl ?? undefined,
+    avatarUrl: testimonial.avatar ?? undefined,
     logoUrl: testimonial.logoUrl ?? undefined,
-    order: testimonial.order,
+    project: testimonial.project ?? undefined,
+    order: testimonial.displayOrder,
   };
 }
 
