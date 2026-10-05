@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { HERO_CONTENT, type HeroContent, type HeroLink } from "./config";
 import { MagneticCta } from "./MagneticCta";
 import { HeroPortrait } from "./HeroPortrait";
+import { HeroTeam, type HeroMember } from "./HeroTeam";
 
 /**
  * Props for {@link Hero}. Every field is optional and falls back to
@@ -30,8 +31,17 @@ export interface HeroProps {
   contactHref?: string;
   /** Optional secondary links. */
   links?: readonly HeroLink[];
+  /**
+   * Team members to feature. With two or more, the hero switches to team
+   * mode: side-by-side portraits and "us" wording instead of a single
+   * portrait. Comes from the published, featured members in Admin → Team.
+   */
+  team?: readonly HeroMember[];
   className?: string;
 }
+
+const SOLO_FOCUS = ["Backend systems", "Full-stack delivery", "MVP prototyping"];
+const TEAM_FOCUS = ["Engineering", "Identity & access", "IT operations"];
 
 /** Resolve incoming props against the default content. */
 function resolveContent(props: HeroProps): HeroContent {
@@ -73,6 +83,9 @@ function resolveContent(props: HeroProps): HeroContent {
 export function Hero(props: HeroProps) {
   const content = resolveContent(props);
   const headingId = "hero-heading";
+  const team = props.team ?? [];
+  const isTeam = team.length >= 2;
+  const focus = isTeam ? TEAM_FOCUS : SOLO_FOCUS;
 
   return (
     <section
@@ -112,7 +125,9 @@ export function Hero(props: HeroProps) {
               <p className="font-mono text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted">
                 <span>{content.role}</span>
                 <span aria-hidden="true"> · </span>
-                <span>Freelance engagements</span>
+                <span>
+                  {isTeam ? `${team.length}-person team` : "Freelance engagements"}
+                </span>
               </p>
             </div>
           </FadeUp>
@@ -134,15 +149,16 @@ export function Hero(props: HeroProps) {
 
           <FadeUp>
             <div className="flex flex-wrap items-center gap-x-space-3 gap-y-space-1 font-mono text-caption uppercase tracking-wider text-muted">
-              <span className="text-text">Backend systems</span>
-              <span aria-hidden="true" className="text-accent">
-                /
-              </span>
-              <span className="text-text">Full-stack delivery</span>
-              <span aria-hidden="true" className="text-accent">
-                /
-              </span>
-              <span className="text-text">MVP prototyping</span>
+              {focus.map((item, index) => (
+                <span key={item} className="contents">
+                  {index > 0 ? (
+                    <span aria-hidden="true" className="text-accent">
+                      /
+                    </span>
+                  ) : null}
+                  <span className="text-text">{item}</span>
+                </span>
+              ))}
             </div>
           </FadeUp>
 
@@ -178,7 +194,7 @@ export function Hero(props: HeroProps) {
                 size="md"
                 className="w-full whitespace-nowrap px-1.5 text-[0.58rem] min-[380px]:px-space-2 min-[380px]:text-caption sm:w-auto sm:px-space-3 sm:text-body"
               >
-                Contact Me
+                {isTeam ? "Contact Us" : "Contact Me"}
               </Button>
             </div>
           </FadeUp>
@@ -207,7 +223,11 @@ export function Hero(props: HeroProps) {
 
         <FadeUp>
           <div className="relative">
-            <HeroPortrait src={content.avatarUrl} name={content.name} />
+            {isTeam ? (
+              <HeroTeam members={team} />
+            ) : (
+              <HeroPortrait src={content.avatarUrl} name={content.name} />
+            )}
           </div>
         </FadeUp>
       </Stagger>

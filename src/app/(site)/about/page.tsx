@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { FadeUp, Stagger } from "@/components/motion";
 import { Button, Card, PageHero, SectionHeading, Tag } from "@/components/ui";
 import { PROFILE_EXPERIENCES } from "@/features/experience";
-import { PROFILE_SUMMARY } from "@/features/skills/config";
 import { Team } from "@/features/studio";
-import { TrustStats } from "@/features/trust";
-import { getSectionCopy, getTeamMembers } from "@/server/public/queries";
+import { TrustStats, toTrustStats } from "@/features/trust";
+import {
+  getSectionCopy,
+  getSiteSettings,
+  getTeamMembers,
+} from "@/server/public/queries";
 import { createPageMetadata } from "@/lib/seo";
 
 const EXPERTISE = [
@@ -75,6 +77,33 @@ const EXPERTISE = [
       "Collaborative planning, API validation, and delivery across structured environments.",
     skills: ["Agile Scrum", "Waterfall", "Jira", "Confluence", "Postman API"],
   },
+  {
+    number: "06",
+    title: "Identity, Access & IT Operations",
+    description:
+      "Secure user access, dependable enterprise operations, and fast, root-cause incident resolution.",
+    skills: [
+      "Identity & Access Management",
+      "User Access Administration",
+      "IT Operations & Support",
+      "Enterprise Application Support",
+      "Systems Administration",
+      "IT Service Management",
+      "Incident & Problem Resolution",
+      "Root-Cause Analysis",
+      "Process Improvement",
+    ],
+  },
+] as const;
+
+/** At-a-glance facts for the studio profile card. */
+const STUDIO_FACTS = [
+  ["Team", "2 specialists"],
+  ["Combined experience", "11+ years"],
+  ["Engineering", "Backend / Full Stack"],
+  ["Operations", "IAM & IT Operations"],
+  ["Delivery", "Enterprise & MVP"],
+  ["Engagement", "Freelance / Global"],
 ] as const;
 
 const PRINCIPLES = [
@@ -92,6 +121,11 @@ const PRINCIPLES = [
     number: "03",
     title: "Built to keep working",
     body: "Maintainability, performance, accessibility, and observability are product features—not cleanup.",
+  },
+  {
+    number: "04",
+    title: "Secure access from day one",
+    body: "Roles, permissions, and user access are designed in before launch—so onboarding is easy and offboarding is instant.",
   },
 ] as const;
 
@@ -114,41 +148,57 @@ function formatRolePeriod(
 export const metadata: Metadata = createPageMetadata({
   title: "About",
   description:
-    "John Person Narral is a backend and full-stack engineer focused on enterprise Java systems, modern web products, and rapid MVP delivery.",
+    "A two-person team pairing backend and full-stack engineering with Identity & Access Management and enterprise IT operations.",
   path: "/about",
 });
 
 export default async function AboutPage() {
-  const [team, teamCopy] = await Promise.all([getTeamMembers(), getSectionCopy("team")]);
+  const [team, teamCopy, settings] = await Promise.all([
+    getTeamMembers(),
+    getSectionCopy("team"),
+    getSiteSettings(),
+  ]);
   return (
     <>
       <PageHero
         index="00"
-        eyebrow="About John"
-        title="Enterprise engineering with full-stack range."
-        description="I am John Person Narral, a backend and full-stack engineer and freelancer with approximately six years of experience across banking, insurance, live-meeting products, enterprise modernization, and rapid MVP delivery."
+        eyebrow="About us"
+        title="Engineering depth. Secure operations. One team."
+        description="We are a two-person team: a backend and full-stack engineer with approximately six years of enterprise delivery, and an IT professional with 5+ years in Identity & Access Management and enterprise IT operations."
       />
 
-      <section className="px-space-2 py-section sm:px-space-4">
+      <Team
+        members={team}
+        eyebrow={teamCopy?.eyebrow}
+        heading={teamCopy?.title ?? "The team"}
+        description={teamCopy?.description}
+        showBackground
+        showStudioLink={false}
+      />
+
+      <section className="border-t border-hairline px-space-2 py-section sm:px-space-4">
         <div className="mx-auto grid max-w-content gap-space-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.55fr)] lg:items-start">
           <FadeUp>
             <div>
               <span className="font-mono text-caption uppercase tracking-[0.18em] text-accent">
-                Professional profile
+                Studio profile
               </span>
               <h2 className="mt-space-3 max-w-4xl text-balance font-display text-h2 font-semibold text-text">
-                Backend-first thinking, applied across the complete product.
+                We build it, secure it, and keep it running.
               </h2>
               <p className="mt-space-4 max-w-4xl text-pretty text-body-lg leading-relaxed text-muted">
-                {PROFILE_SUMMARY}
+                Most products fail in the gaps between building and running
+                them. We close those gaps: one of us designs and ships the
+                system, the other makes sure the right people have the right
+                access and that it stays dependable once real users arrive.
               </p>
               <p className="mt-space-3 max-w-4xl text-pretty text-body leading-relaxed text-muted">
-                My work spans secure banking services, export-import insurance
-                applications, live-meeting products, enterprise integrations,
-                reusable interface systems, and rapid product validation. I am
-                comfortable moving between architecture, API design, frontend
-                delivery, CI/CD, observability, accessibility, and production
-                support.
+                Together our work spans secure banking services, export-import
+                insurance applications, live-meeting products, enterprise
+                integrations, identity and access administration, IT service
+                management, and production support—from architecture and API
+                design to user access, incident resolution, and process
+                improvement.
               </p>
               <div className="mt-space-5 flex flex-wrap gap-space-2">
                 <Button href="/projects" variant="primary" size="md">
@@ -170,33 +220,17 @@ export default async function AboutPage() {
 
           <FadeUp>
             <aside className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a0d10]">
-              <div className="relative aspect-[4/5] w-full overflow-hidden">
-                <Image
-                  src="/images/profile.png"
-                  alt="John Person Narral"
-                  fill
-                  sizes="(max-width: 1024px) 90vw, 22rem"
-                  className="object-cover object-[center_12%]"
-                  priority
-                />
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-gradient-to-t from-[#0a0d10] via-transparent to-transparent"
-                />
-              </div>
+              <div
+                aria-hidden="true"
+                className="programmatic-grid absolute inset-0 opacity-20"
+              />
               <div className="relative p-space-4">
                 <div className="flex items-center gap-space-2 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-accent">
                   <span className="status-pulse h-2 w-2 rounded-full bg-emerald-400" />
-                  Engineering profile
+                  Studio at a glance
                 </div>
                 <dl className="mt-space-4 divide-y divide-white/10">
-                  {[
-                    ["Experience", "6+ years"],
-                    ["Primary focus", "Backend / Full Stack"],
-                    ["Delivery", "Enterprise & MVP"],
-                    ["Engagement", "Freelance / Global"],
-                    ["Current role", "Backend Engineer"],
-                  ].map(([label, value]) => (
+                  {STUDIO_FACTS.map(([label, value]) => (
                     <div
                       key={label}
                       className="flex items-start justify-between gap-space-3 py-space-3 first:pt-0 last:pb-0"
@@ -216,23 +250,18 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <TrustStats showDetailLink={false} className="bg-transparent" />
-
-      <Team
-        members={team}
-        eyebrow={teamCopy?.eyebrow}
-        heading={teamCopy?.title ?? "The team"}
-        description={teamCopy?.description}
-        showBackground
-        showStudioLink={false}
+      <TrustStats
+        stats={toTrustStats(settings["home.stats"])}
+        showDetailLink={false}
+        className="bg-transparent"
       />
 
       <section className="border-t border-hairline bg-bg-secondary px-space-2 py-section sm:px-space-4">
         <div className="mx-auto max-w-content">
           <SectionHeading
             eyebrow="Expertise map"
-            heading="A complete engineering toolkit"
-            description="Technologies and delivery practices used across backend systems, full-stack products, cloud delivery, observability, and rapid prototyping."
+            heading="One team, a complete delivery toolkit"
+            description="Technologies and practices across backend systems, full-stack products, cloud delivery, observability, rapid prototyping, identity & access, and IT operations."
           />
           <Stagger
             as="ul"
@@ -242,7 +271,12 @@ export default async function AboutPage() {
               <FadeUp
                 as="li"
                 key={group.title}
-                className={`list-none ${index === 4 ? "md:col-span-2" : ""}`}
+                // An odd final card spans the row so the grid never ends ragged.
+                className={`list-none ${
+                  index === EXPERTISE.length - 1 && EXPERTISE.length % 2 === 1
+                    ? "md:col-span-2"
+                    : ""
+                }`}
               >
                 <Card className="h-full p-space-4 sm:p-space-5">
                   <div className="flex items-start gap-space-3">
@@ -280,9 +314,9 @@ export default async function AboutPage() {
       <section className="border-t border-hairline px-space-2 py-section sm:px-space-4">
         <div className="mx-auto max-w-content">
           <SectionHeading
-            eyebrow="Career snapshot"
+            eyebrow="Engineering career snapshot"
             heading="Experience across enterprise delivery"
-            description="A concise view of the roles and product environments behind the capability set."
+            description="The engineering roles and product environments behind the build side of the team."
           />
           <Stagger
             as="ol"
@@ -339,13 +373,13 @@ export default async function AboutPage() {
       <section className="border-t border-hairline px-space-2 py-section sm:px-space-4">
         <div className="mx-auto max-w-content">
           <SectionHeading
-            eyebrow="How I work"
-            heading="Engineering principles"
-            description="The operating principles I use to make delivery clearer, more reliable, and more useful."
+            eyebrow="How we work"
+            heading="Delivery principles"
+            description="The operating principles we share to make delivery clearer, more secure, and more reliable."
           />
           <Stagger
             as="ul"
-            className="mt-space-8 grid gap-space-3 md:grid-cols-3"
+            className="mt-space-8 grid gap-space-3 md:grid-cols-2 lg:grid-cols-4"
           >
             {PRINCIPLES.map((principle) => (
               <FadeUp
@@ -383,11 +417,12 @@ export default async function AboutPage() {
                   Work together
                 </span>
                 <h2 className="mt-space-2 max-w-3xl text-balance font-display text-h2 font-semibold text-text">
-                  Need backend depth and full-stack execution in one engineer?
+                  Need it built, secured, and supported—by one team?
                 </h2>
                 <p className="mt-space-3 max-w-2xl text-pretty text-body leading-relaxed text-muted">
-                  I am available for focused freelance engagements, enterprise
-                  product work, integrations, modernization, and MVP delivery.
+                  We are available for focused freelance engagements, enterprise
+                  product work, integrations, modernization, MVP delivery,
+                  identity & access setup, and ongoing IT support.
                 </p>
               </div>
               <Button href="/contact" variant="primary" size="lg">

@@ -12,21 +12,50 @@ export interface TeamOverlap {
   points: readonly string[];
 }
 
-function Portrait({ member }: { member: TeamMemberView }) {
+/**
+ * A member's photo, or a branded placeholder (initials + "Photo coming soon")
+ * until one is uploaded in Admin → Team. Shared by the team cards and the
+ * homepage hero.
+ */
+export function MemberPortrait({
+  member,
+  sizes = "(max-width: 640px) 90vw, 10rem",
+  priority = false,
+  className,
+}: {
+  member: Pick<TeamMemberView, "name" | "initials" | "profileImage">;
+  sizes?: string;
+  priority?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-white/10 bg-[#090b0e] sm:w-40 sm:shrink-0">
+    <div
+      className={cn(
+        "relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-white/10 bg-[#090b0e]",
+        className,
+      )}
+    >
       {member.profileImage ? (
         <Image
           {...imageSource(member.profileImage)}
           alt={member.name}
           fill
-          sizes="(max-width: 640px) 90vw, 10rem"
+          sizes={sizes}
+          priority={priority}
           className="object-cover object-[center_12%]"
         />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-space-1 bg-[radial-gradient(circle_at_30%_20%,rgba(114,215,255,0.16),transparent_55%),radial-gradient(circle_at_80%_90%,rgba(212,175,55,0.14),transparent_50%)]">
-          <span className="font-display text-h1 font-semibold text-text/85">
+        <div
+          role="img"
+          aria-label={`${member.name} — photo coming soon`}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-space-2 bg-[radial-gradient(circle_at_30%_20%,rgba(114,215,255,0.16),transparent_55%),radial-gradient(circle_at_80%_90%,rgba(212,175,55,0.14),transparent_50%)]"
+        >
+          <div aria-hidden="true" className="programmatic-grid absolute inset-0 opacity-25" />
+          <span className="relative flex aspect-square w-[42%] max-w-[7rem] items-center justify-center rounded-full border border-accent/40 bg-bg/60 font-display text-h3 font-semibold text-text/90 shadow-[0_0_40px_-8px_rgba(212,175,55,0.45)]">
             {member.initials}
+          </span>
+          <span className="relative font-mono text-[0.58rem] uppercase tracking-[0.2em] text-muted">
+            Photo coming soon
           </span>
         </div>
       )}
@@ -82,7 +111,7 @@ export function MemberCard({
       )}
     >
       <div className="flex flex-col gap-space-3 sm:flex-row sm:items-end">
-        <Portrait member={member} />
+        <MemberPortrait member={member} className="sm:w-40 sm:shrink-0" />
         <div>
           <p className="font-mono text-caption uppercase tracking-[0.18em] text-accent">
             {member.role}
@@ -205,7 +234,11 @@ export function Team({
           as="div"
           className={cn(
             "relative grid gap-space-3",
-            members.length > 1 ? "lg:grid-cols-2" : "mx-auto w-full max-w-2xl",
+            // One member: centred card. Two: the side-by-side pairing.
+            // Three or more: wraps into a grid so new teammates just fit.
+            members.length === 1 && "mx-auto w-full max-w-2xl",
+            members.length === 2 && "lg:grid-cols-2",
+            members.length >= 3 && "md:grid-cols-2 xl:grid-cols-3",
           )}
         >
           {members.map((member) => (

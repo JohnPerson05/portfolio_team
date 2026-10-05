@@ -37,6 +37,33 @@ const CAPABILITY_LAYERS = [
     focus: ["Codex", "Claude", "Lovable", "v0 by Vercel", "MVP Prototyping"],
     signal: "AI-assisted",
   },
+  {
+    number: "05",
+    title: "Identity & Access",
+    description:
+      "Making sure the right people get the right access—provisioned cleanly, reviewed regularly, and removed just as easily.",
+    focus: [
+      "Identity & Access Management",
+      "User Access Administration",
+      "Enterprise Application Support",
+      "Process Improvement",
+    ],
+    signal: "Secure access",
+  },
+  {
+    number: "06",
+    title: "IT Operations & Support",
+    description:
+      "Keeping enterprise technology dependable: systems administration, service management, and incidents fixed at the root cause.",
+    focus: [
+      "IT Operations",
+      "Systems Administration",
+      "IT Service Management",
+      "Incident & Problem Resolution",
+      "Root-Cause Analysis",
+    ],
+    signal: "Always-on",
+  },
 ] as const;
 
 const DELIVERY_TOOLKIT = [
@@ -102,7 +129,7 @@ const DELIVERY_DOMAINS = [
 export const metadata: Metadata = createPageMetadata({
   title: "Capabilities",
   description:
-    "John Person Narral's engineering capabilities across Java, Spring Boot, microservices, React, Next.js, cloud delivery, observability, and AI-assisted MVP development.",
+    "Team capabilities across Java, Spring Boot, microservices, React, Next.js, cloud delivery, observability, AI-assisted MVP development, Identity & Access Management, and IT operations.",
   path: "/skills",
 });
 
@@ -112,16 +139,16 @@ export default function SkillsPage() {
       <PageHero
         index="02"
         eyebrow="Capabilities"
-        title="Backend depth. Full-stack delivery. Production discipline."
-        description="A practical engineering capability set shaped by approximately six years of enterprise delivery—spanning Java services, modern product interfaces, cloud pipelines, observability, and rapid MVP development."
+        title="Build it. Secure it. Run it."
+        description="A combined capability set shaped by 11+ years of enterprise experience—Java services, modern product interfaces, cloud pipelines and observability on one side; Identity & Access Management, IT operations, and service management on the other."
       />
 
       <section className="px-space-2 py-section sm:px-space-4">
         <div className="mx-auto max-w-content">
           <SectionHeading
             eyebrow="Capability architecture"
-            heading="How the stack fits together"
-            description="Each capability layer supports the next—from dependable services and integrations to polished interfaces, reliable delivery, and fast product validation."
+            heading="How the capabilities fit together"
+            description="Each layer supports the next—from dependable services and polished interfaces to reliable delivery, secure access, and operations that keep everything running."
           />
           <Stagger
             as="ol"
@@ -170,7 +197,7 @@ export default function SkillsPage() {
 
       <Skills
         eyebrow="Engineering matrix"
-        heading="Detailed skills & proficiency"
+        heading="Engineering skills & proficiency"
         showDetailLink={false}
         className="border-y border-hairline bg-bg-secondary"
       />
@@ -284,8 +311,8 @@ export default function SkillsPage() {
                   Have a system, integration, or product challenge?
                 </h2>
                 <p className="mt-space-3 max-w-2xl text-pretty text-body leading-relaxed text-muted">
-                  Share the context and I can help identify the right
-                  architecture, delivery path, and capability mix.
+                  Share the context and we can help identify the right
+                  architecture, access model, delivery path, and support plan.
                 </p>
               </div>
               <Button href="/contact" variant="primary" size="lg">

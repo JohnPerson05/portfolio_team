@@ -29,7 +29,7 @@ export interface SettingChapter {
 }
 
 const VALUE_PROPOSITION =
-  "Backend-focused engineer with approximately 6 years of experience building enterprise and web applications, rapid MVPs, reusable product interfaces, and reliable cloud delivery.";
+  "A two-person delivery team: backend and full-stack engineering with ~6 years of enterprise experience, paired with 5+ years of Identity & Access Management and IT operations — so what we build is secure, supported, and ready for real users.";
 
 export interface SiteSettings {
   "studio.name": string;
@@ -101,14 +101,14 @@ export const SETTINGS_REGISTRY: Registry = {
     type: "text",
     group: "Site",
     help: "Shown in the navbar, footer, page titles, and structured data.",
-    defaultValue: "John Person",
+    defaultValue: "Pairwork Studio",
   },
   "studio.tagline": {
     key: "studio.tagline",
     label: "Tagline",
     type: "text",
     group: "Site",
-    defaultValue: "Backend / Full Stack Engineer · Freelancer",
+    defaultValue: "Engineering · Identity & Access · IT Operations",
   },
   "studio.description": {
     key: "studio.description",
@@ -123,14 +123,14 @@ export const SETTINGS_REGISTRY: Registry = {
     label: "Hero name",
     type: "text",
     group: "Hero",
-    defaultValue: "John Person",
+    defaultValue: "Pairwork Studio",
   },
   "hero.role": {
     key: "hero.role",
     label: "Role line",
     type: "text",
     group: "Hero",
-    defaultValue: "Backend / Full Stack Engineer · Freelancer",
+    defaultValue: "Engineering · Identity & Access · IT Operations",
   },
   "hero.subtitle": {
     key: "hero.subtitle",
@@ -206,6 +206,10 @@ export const SETTINGS_REGISTRY: Registry = {
       "React & Next.js",
       "Azure DevOps CI/CD",
       "Rapid MVP delivery",
+      "Identity & Access Management",
+      "User access administration",
+      "IT operations & support",
+      "Incident & root-cause resolution",
       "AI-assisted development",
     ],
   },
@@ -215,10 +219,10 @@ export const SETTINGS_REGISTRY: Registry = {
     type: "stats",
     group: "Homepage content",
     defaultValue: [
-      { label: "Years of Experience", value: 6, suffix: "+" },
-      { label: "Organizations", value: 4 },
+      { label: "Specialists, one team", value: 2 },
+      { label: "Combined years of experience", value: 11, suffix: "+" },
       { label: "Core Technologies", value: 30, suffix: "+" },
-      { label: "Delivery Domains", value: 5 },
+      { label: "Delivery Domains", value: 6 },
       { label: "AI Development Tools", value: 4 },
     ],
   },
@@ -287,7 +291,7 @@ export const SETTINGS_REGISTRY: Registry = {
     type: "textarea",
     group: "Contact & social",
     defaultValue:
-      "Backend and full-stack engineering for enterprise systems, product integrations, and focused MVP delivery.",
+      "A two-person team for enterprise systems, product integrations, MVP delivery, and secure identity & access operations.",
   },
 
   "seo.title": {
@@ -295,7 +299,7 @@ export const SETTINGS_REGISTRY: Registry = {
     label: "Default SEO title",
     type: "text",
     group: "SEO",
-    defaultValue: "John Person — Backend / Full Stack Engineer · Freelancer",
+    defaultValue: "Pairwork Studio — Engineering · Identity & Access · IT Operations",
   },
   "seo.description": {
     key: "seo.description",

@@ -34,6 +34,12 @@ export interface HomeData {
 
 type Renderer = (section: HomepageSectionView, data: HomeData) => ReactNode;
 
+/** Members shown in the hero: the featured ones, or everyone if none are. */
+function heroTeam(team: readonly TeamMemberView[]): TeamMemberView[] {
+  const featured = team.filter((member) => member.isFeatured);
+  return featured.length > 0 ? featured : [...team];
+}
+
 /**
  * One renderer per homepage section key. Defaults reproduce the original
  * portfolio homepage (plus Team); the CMS (Homepage) controls which sections
@@ -48,6 +54,7 @@ const RENDERERS: Record<string, Renderer> = {
       avatarUrl={d.settings["hero.portrait"]}
       coverUrl={d.settings["hero.cover"]}
       links={d.social}
+      team={heroTeam(d.team)}
     />
   ),
   craft: (_s, d) => (
@@ -57,7 +64,7 @@ const RENDERERS: Record<string, Renderer> = {
       chapters={d.settings["craft.chapters"]}
       coverImage={d.settings["hero.cover"]}
       profileImage={d.settings["hero.portrait"]}
-      profileAlt={`${d.settings["hero.name"]} portrait`}
+      profileAlt={`${d.team[0]?.name ?? d.settings["hero.name"]} portrait`}
     />
   ),
   ticker: (_s, d) => <CapabilityTicker items={d.settings["home.tickerItems"]} />,

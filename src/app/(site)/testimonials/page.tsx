@@ -6,7 +6,7 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata: Metadata = createPageMetadata({
   title: "Professional References",
   description:
-    "Professional references for John Person Narral are available upon request.",
+    "Professional references for our team are available upon request.",
   path: "/testimonials",
 });
 

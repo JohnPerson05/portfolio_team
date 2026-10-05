@@ -66,6 +66,27 @@ describe("Hero", () => {
     expect(screen.getByRole("img", { name: "Jordan Lee" })).toBeInTheDocument();
   });
 
+  it("switches to team mode with two or more members", () => {
+    render(
+      <Hero
+        team={[
+          { id: "a", name: "Ana Cruz", role: "Engineer", initials: "AC", profileImage: "/images/profile.png" },
+          { id: "b", name: "Ben Ito", role: "IAM Specialist", initials: "BI" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Ana Cruz" })).toBeInTheDocument();
+    // No photo yet → placeholder with an accessible name.
+    expect(
+      screen.getByRole("img", { name: "Ben Ito — photo coming soon" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2-person team")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /contact us/i })).toHaveAttribute(
+      "href",
+      "/contact",
+    );
+  });
+
   it("renders optional secondary links when provided", () => {
     render(
       <Hero

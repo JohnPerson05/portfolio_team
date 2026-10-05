@@ -264,18 +264,32 @@ export const teamMembers: SeedTeamMember[] = [
       "Azure DevOps CI/CD & cloud delivery",
       "Rapid MVP prototyping",
     ],
-    skills: [],
+    skills: [
+      "Java",
+      "Spring Boot",
+      "Microservices",
+      "REST APIs",
+      "SQL",
+      "React.js",
+      "Next.js",
+      "TypeScript",
+      "Azure DevOps CI/CD",
+      "OpenShift",
+      "Datadog",
+      "Grafana",
+    ],
     experience: "~6 years building enterprise and web applications",
     isPublished: true,
     isFeatured: true,
   },
   {
-    // Profile supplied by the owner. Name and photo not provided yet —
-    // update them in Admin → Team.
+    // Profile supplied by the owner. Name and photo not provided yet — the
+    // site shows a "Photo coming soon" placeholder; update both in Admin → Team.
     name: "IAM & IT Operations Specialist",
     slug: "second-team-member",
     role: "Identity & Access Management · IT Operations",
-    shortBio: "Enterprise IT operations and Identity & Access Management.",
+    shortBio:
+      "Keeps access secure and enterprise operations running — the right people, the right access, no downtime surprises.",
     bio: "Results-driven IT professional with 5+ years of experience in enterprise technology and Identity & Access Management. Experienced in supporting technology operations, managing identity-related processes, troubleshooting technical issues, and delivering reliable IT services within a corporate environment.",
     responsibilities: [
       "Identity and Access Management (IAM)",
