@@ -1,0 +1,125 @@
+// Prisma schema for the Elite Portfolio.
+// Data store: Neon PostgreSQL. Generated client is consumed through the
+// shared singleton in `src/lib/prisma.ts` (see Requirement 17.3).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  summary      String
+  problem      String
+  solution     String
+  impact       String
+  technologies String[] // tech stack tags
+  thumbnailUrl String?
+  githubUrl    String?
+  liveUrl      String?
+  featured     Boolean  @default(false)
+  order        Int      @default(0) // featured ordering
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clicks AnalyticsEvent[]
+
+  @@index([featured, order])
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  excerpt     String
+  content     String // markdown/MDX or rich text
+  coverUrl    String?
+  status      PostStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+model Skill {
+  id          String        @id @default(cuid())
+  name        String
+  category    SkillCategory
+  proficiency Int // 0-100
+  order       Int           @default(0)
+
+  @@index([category, order])
+}
+
+model Experience {
+  id           String    @id @default(cuid())
+  company      String
+  position     String
+  startDate    DateTime
+  endDate      DateTime? // null = present
+  impact       String
+  achievements String[]
+  order        Int       @default(0)
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  quote     String
+  author    String
+  role      String
+  company   String?
+  avatarUrl String?
+  logoUrl   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ContactSubmission {
+  id              String    @id @default(cuid())
+  name            String
+  email           String
+  company         String?
+  message         String
+  attachmentUrls  String[]  @default([])
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+model AnalyticsEvent {
+  id        String    @id @default(cuid())
+  type      EventType
+  path      String?
+  projectId String?
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+
+  @@index([type, createdAt])
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SkillCategory {
+  FRONTEND
+  BACKEND
+  CLOUD
+  AI
+}
+
+enum EventType {
+  PORTFOLIO_VIEW
+  PROJECT_CLICK
+  RESUME_DOWNLOAD
+  CONTACT_SUBMISSION
+}
