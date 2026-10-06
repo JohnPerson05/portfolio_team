@@ -17,6 +17,8 @@
     "format:check": "prettier --check .",
     "auth:hash": "tsx scripts/hash-password.ts",
     "admin:setup": "tsx scripts/setup-admin.ts",
+    "admin:add-user": "tsx scripts/add-user.ts",
+    "team:update": "tsx scripts/update-team-profiles.ts",
     "blob:setup": "tsx scripts/setup-blob.ts",
     "db:seed": "prisma db seed",
     "db:migrate": "prisma migrate deploy"

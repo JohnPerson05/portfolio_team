@@ -4,8 +4,7 @@ import type { Config } from "tailwindcss";
 // theme"). Colors map to the CSS variables declared in `globals.css` so the
 // token system has a single source of truth. Fluid typography uses clamp()
 // for hero → section headings → body → caption, and spacing follows an
-// 8px-based rhythm. `bg`, `text`, and `accent` are expressed as RGB channels so
-// opacity modifiers (e.g. `bg-bg/60`, `border-accent/40`) work as intended.
+// 8px-based rhythm.
 const config: Config = {
   content: [
     "./src/app/**/*.{ts,tsx,mdx}",
@@ -17,18 +16,18 @@ const config: Config = {
       colors: {
         // Backgrounds
         bg: {
-          DEFAULT: "rgb(var(--bg-rgb) / <alpha-value>)",
+          DEFAULT: "var(--bg)",
           secondary: "var(--bg-secondary)",
         },
         card: "var(--card)",
         // Text — exposes `text-text`, `text-muted`, `text-accent`
         text: {
-          DEFAULT: "rgb(var(--text-rgb) / <alpha-value>)",
+          DEFAULT: "var(--text)",
           muted: "var(--text-muted)",
         },
         muted: "var(--text-muted)",
         accent: {
-          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
+          DEFAULT: "var(--accent)",
         },
         // Border — exposes `border-hairline`
         hairline: "var(--border)",
