@@ -84,6 +84,10 @@ export interface ScrollSceneProps {
   coverImage?: string;
   profileImage?: string;
   profileAlt?: string;
+  /** Section anchor id; must be unique when several scenes share a page. */
+  id?: string;
+  /** Put the media on the left and the copy on the right, with motion reversed. */
+  mirrored?: boolean;
   className?: string;
 }
 
@@ -94,6 +98,8 @@ export function ScrollScene({
   coverImage = SCROLL_SCENE_COVER,
   profileImage = SCROLL_SCENE_PROFILE,
   profileAlt = "John Person portrait",
+  id = "craft",
+  mirrored = false,
   className,
 }: ScrollSceneProps) {
   const chapters: ScrollSceneChapter[] = chapterInput.map((c, i) => ({
@@ -103,6 +109,8 @@ export function ScrollScene({
     body: c.body,
   }));
   const trackRef = useRef<HTMLElement>(null);
+  const mirror = (values: number[]) =>
+    mirrored ? values.map((v) => -v) : values;
   const reducedMotion = useReducedMotion() === true;
   const { scrollYProgress } = useScroll({
     target: trackRef,
@@ -112,7 +120,7 @@ export function ScrollScene({
   const coverRotateY = useTransform(
     scrollYProgress,
     [0, 0.5, 1],
-    reducedMotion ? [0, 0, 0] : [-18, -6, 10],
+    reducedMotion ? [0, 0, 0] : mirror([-18, -6, 10]),
   );
   const coverRotateX = useTransform(
     scrollYProgress,
@@ -133,7 +141,7 @@ export function ScrollScene({
   const profileRotateY = useTransform(
     scrollYProgress,
     [0, 0.45, 1],
-    reducedMotion ? [0, 0, 0] : [22, 4, -12],
+    reducedMotion ? [0, 0, 0] : mirror([22, 4, -12]),
   );
   const profileRotateX = useTransform(
     scrollYProgress,
@@ -148,7 +156,7 @@ export function ScrollScene({
   const profileX = useTransform(
     scrollYProgress,
     [0, 1],
-    reducedMotion ? ["0%", "0%"] : ["18%", "-2%"],
+    reducedMotion ? ["0%", "0%"] : mirrored ? ["-18%", "2%"] : ["18%", "-2%"],
   );
   const profileY = useTransform(
     scrollYProgress,
@@ -169,12 +177,12 @@ export function ScrollScene({
   const innerRingScale = useTransform(ringScale, (value) => value * 0.82);
   const innerRingOpacity = useTransform(ringOpacity, (value) => value * 0.7);
 
-  const headingId = "scroll-scene-heading";
+  const headingId = `${id}-heading`;
 
   return (
     <section
       ref={trackRef}
-      id="craft"
+      id={id}
       aria-labelledby={headingId}
       className={cn("relative w-full", className)}
       style={{ height: reducedMotion ? "auto" : "280vh" }}
@@ -188,12 +196,24 @@ export function ScrollScene({
         )}
       >
         <div aria-hidden="true" className="absolute inset-0 bg-bg">
-          <div className="from-bg via-bg-secondary/80 absolute inset-0 bg-gradient-to-b to-bg" />
+          <div className="via-bg-secondary/80 absolute inset-0 bg-gradient-to-b from-bg to-bg" />
           <div className="programmatic-grid absolute inset-0 opacity-30" />
         </div>
 
-        <div className="relative mx-auto grid w-full max-w-content items-center gap-space-8 px-space-2 sm:px-space-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <div className="relative z-10 flex flex-col gap-space-4">
+        <div
+          className={cn(
+            "relative mx-auto grid w-full max-w-content items-center gap-space-8 px-space-2 sm:px-space-4",
+            mirrored
+              ? "lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]"
+              : "lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]",
+          )}
+        >
+          <div
+            className={cn(
+              "relative z-10 flex flex-col gap-space-4",
+              mirrored && "lg:order-2",
+            )}
+          >
             <div>
               <p className="font-mono text-caption uppercase tracking-[0.2em] text-accent">
                 {eyebrow}
@@ -225,13 +245,16 @@ export function ScrollScene({
           </div>
 
           <div
-            className="relative mx-auto flex h-[min(70vh,34rem)] w-full max-w-xl items-center justify-center lg:h-[min(74vh,38rem)]"
+            className={cn(
+              "relative mx-auto flex h-[min(70vh,34rem)] w-full max-w-xl items-center justify-center lg:h-[min(74vh,38rem)]",
+              mirrored && "lg:order-1",
+            )}
             style={{ perspective: "1400px", perspectiveOrigin: "50% 45%" }}
           >
             <motion.div
               aria-hidden="true"
               style={{ scale: ringScale, opacity: ringOpacity }}
-              className="absolute h-[78%] w-[78%] rounded-full border border-accent/25"
+              className="border-accent/25 absolute h-[78%] w-[78%] rounded-full border"
             />
             <motion.div
               aria-hidden="true"
@@ -258,7 +281,7 @@ export function ScrollScene({
                 className="object-cover"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-tr from-bg/55 via-transparent to-bg/20" />
+              <div className="from-bg/55 to-bg/20 absolute inset-0 bg-gradient-to-tr via-transparent" />
             </motion.div>
 
             <motion.div

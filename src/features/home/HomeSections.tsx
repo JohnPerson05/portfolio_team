@@ -2,6 +2,13 @@ import type { ReactNode } from "react";
 
 import { CapabilityTicker, Hero } from "@/features/hero";
 import { ScrollScene } from "@/features/scroll-scene";
+import {
+  LEYAHN_SCENE_CHAPTERS,
+  LEYAHN_SCENE_COVER,
+  LEYAHN_SCENE_EYEBROW,
+  LEYAHN_SCENE_HEADING,
+  LEYAHN_SCENE_PROFILE,
+} from "@/features/scroll-scene/config";
 import { TrustStats, toTrustStats } from "@/features/trust";
 import { FeaturedProjects } from "@/features/projects";
 import { Skills } from "@/features/skills";
@@ -58,14 +65,27 @@ const RENDERERS: Record<string, Renderer> = {
     />
   ),
   craft: (_s, d) => (
-    <ScrollScene
-      eyebrow={d.settings["craft.eyebrow"]}
-      heading={d.settings["craft.heading"]}
-      chapters={d.settings["craft.chapters"]}
-      coverImage={d.settings["hero.cover"]}
-      profileImage={d.settings["hero.portrait"]}
-      profileAlt={`${d.team[0]?.name ?? d.settings["hero.name"]} portrait`}
-    />
+    <>
+      <ScrollScene
+        eyebrow={d.settings["craft.eyebrow"]}
+        heading={d.settings["craft.heading"]}
+        chapters={d.settings["craft.chapters"]}
+        coverImage={d.settings["hero.cover"]}
+        profileImage={d.settings["hero.portrait"]}
+        profileAlt={`${d.team[0]?.name ?? d.settings["hero.name"]} portrait`}
+      />
+      {/* Leyahn's scene mirrors John's: media on the left, copy on the right. */}
+      <ScrollScene
+        id="craft-leyahn"
+        mirrored
+        eyebrow={LEYAHN_SCENE_EYEBROW}
+        heading={LEYAHN_SCENE_HEADING}
+        chapters={LEYAHN_SCENE_CHAPTERS}
+        coverImage={LEYAHN_SCENE_COVER}
+        profileImage={LEYAHN_SCENE_PROFILE}
+        profileAlt="Leyahn Mallorca portrait"
+      />
+    </>
   ),
   ticker: (_s, d) => <CapabilityTicker items={d.settings["home.tickerItems"]} />,
   stats: (s, d) =>

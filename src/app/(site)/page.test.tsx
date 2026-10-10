@@ -71,6 +71,7 @@ describe("Home page", () => {
     expect(labels).toEqual([
       "Hero section",
       "Craft section",
+      "Craft section", // Leyahn's mirrored scene
       "Trust section",
       "Team section",
       "Projects section",

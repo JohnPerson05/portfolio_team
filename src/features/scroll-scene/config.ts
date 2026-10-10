@@ -35,3 +35,27 @@ export interface ScrollSceneChapter {
   readonly title: string;
   readonly body: string;
 }
+
+/** Leyahn's scene — rendered mirrored (media left) right after John's. */
+export const LEYAHN_SCENE_COVER = "/images/team/leyahn-cover.png" as const;
+export const LEYAHN_SCENE_PROFILE = "/images/team/leyahn-portrait.png" as const;
+export const LEYAHN_SCENE_EYEBROW = "Secure operations" as const;
+export const LEYAHN_SCENE_HEADING = "Scroll through the work." as const;
+
+export const LEYAHN_SCENE_CHAPTERS = [
+  {
+    label: "01 — Access",
+    title: "The right people, the right doors",
+    body: "Identity & Access Management done carefully — requests, reviews, and controls that keep systems open to the right people and closed to everyone else.",
+  },
+  {
+    label: "02 — Automation",
+    title: "Repetitive work, retired",
+    body: "PowerShell, Python, REST APIs, and Azure turn manual, error-prone tasks into reliable workflows that run the same way every time.",
+  },
+  {
+    label: "03 — Assurance",
+    title: "Audit-ready by default",
+    body: "Accurate reports, clean evidence, and documented controls — so compliance reviews are a formality, not a fire drill.",
+  },
+] as const;
